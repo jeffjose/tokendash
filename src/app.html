@@ -29,8 +29,9 @@
 					localStorage.removeItem("theme");
 					localStorage.removeItem("theme:dark");
 				}
-				// As the system has it is the default: with nothing kept, the page is light or dark as the system is.
-				const dark = mode === "dark" || (mode !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+				// Light is the default: with nothing kept, the page is light, whatever the system is. A profile is a page to be
+				// shown, and is drawn for a light page first; dark, or as the system has it, is one press away (top right).
+				const dark = mode === "dark" || (mode === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
 				root.classList.toggle("dark", dark);
 				// The app's own look says nothing; any other says which it is, for the stylesheet.
 				if (look && look !== "own" && /^[a-z-]{1,32}$/.test(look)) root.dataset.look = look;

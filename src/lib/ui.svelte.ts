@@ -284,15 +284,15 @@ type Wearing = { mode: Mode; look: Look };
  * a look by `app.html`, which has run by the time this is read.)
  */
 class Appearance {
-	/** As the system has it, light or dark, until another is chosen. */
-	mode = $state<Mode>('system');
+	/** Light until another is chosen (`app.html` says why). */
+	mode = $state<Mode>('light');
 	look = $state<Look>(OWN);
 	accent = $state<Accent>('own');
 	/** Whether the page is dark just now, whatever was asked for: for drawing a look as it would be. */
 	dark = $state(false);
 
 	constructor() {
-		this.mode = MODES.find((m) => m.value === recall('mode'))?.value ?? 'system';
+		this.mode = MODES.find((m) => m.value === recall('mode'))?.value ?? 'light';
 		this.look = LOOKS.find((l) => l.value === recall('look'))?.value ?? OWN;
 		this.accent = ACCENTS.find((a) => a.value === recall('accent'))?.value ?? 'own';
 		if (typeof window === 'undefined') return;
