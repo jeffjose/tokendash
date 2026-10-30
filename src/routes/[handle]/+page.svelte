@@ -4,6 +4,7 @@
 	import AppearanceMenu from '#lib/components/appearance-menu.svelte';
 	import Bars from '#lib/components/bars.svelte';
 	import Breakdown from '#lib/components/breakdown.svelte';
+	import Climb from '#lib/components/climb.svelte';
 	import Clock from '#lib/components/clock.svelte';
 	import Hover from '#lib/components/hover.svelte';
 	import Mark from '#lib/components/mark.svelte';
@@ -72,6 +73,32 @@
 		})
 	);
 
+	// All of it, added up a day at a time from the first day to today, in the same parts as the bars.
+	const climb = $derived.by(() => {
+		if (!days.length) return [];
+		const out: { iso: string; parts: number[] }[] = [];
+		const run = series.map(() => 0);
+		for (let d = dateOf(days[0].date); d <= today; d = addDays(d, 1)) {
+			const day = dayBy.get(isoOf(d));
+			if (day) partsOf(day.rows).forEach((n, j) => (run[j] += n));
+			out.push({ iso: isoOf(d), parts: [...run] });
+		}
+		return out;
+	});
+	// The days it passed a round number on: a power of ten, of tokens or of dollars. The last four are said.
+	const milestones = $derived.by(() => {
+		const marks: { at: number; iso: string }[] = [];
+		let next = measure === 'cost' ? 10 : 1e6;
+		climb.forEach((c, i) => {
+			const n = c.parts.reduce((a, b) => a + b, 0);
+			while (n >= next) {
+				marks.push({ at: next, iso: c.iso });
+				next *= 10;
+			}
+		});
+		return marks.slice(-4);
+	});
+
 	// When in the day, by tool: an hour is counted in responses, since that is what the tools say of an hour.
 	const toolSeries = $derived(seriesOf(rows, 'tool'));
 	const hours = $derived(
@@ -132,7 +159,7 @@
 	const listed = $derived([...days].reverse().slice(0, every ? undefined : 14));
 
 	// The hover card: what is under the pointer, and where.
-	type Point = ({ kind: 'day'; iso: string } | { kind: 'clock'; day: number; hour: number } | { kind: 'week'; i: number }) & { at: DOMRect; below?: boolean };
+	type Point = ({ kind: 'day'; iso: string } | { kind: 'climb'; i: number } | { kind: 'clock'; day: number; hour: number } | { kind: 'week'; i: number }) & { at: DOMRect; below?: boolean };
 	let point = $state<Point | null>(null);
 
 	// A part of the whole too small to say as a whole number is said to a tenth, and one too small for that as under it.
@@ -250,6 +277,30 @@
 			{/if}
 		</div>
 	</section>
+
+	{#if climb.length > 1}
+		<section class="flex flex-col gap-3">
+			<h2 class={HEADING}>All of it, added up</h2>
+			<div class="{CARD} p-5">
+				<Climb
+					points={climb.map((c) => c.parts)}
+					colors={series.map((s) => s.color)}
+					fmt={say}
+					ticks={[
+						{ at: 0, label: fullDay(climb[0].iso) },
+						{ at: Math.floor(climb.length / 2), label: dayName(climb[Math.floor(climb.length / 2)].iso) },
+						{ at: climb.length - 1, label: 'Today' }
+					]}
+					onpoint={(i, at) => (point = i !== null && at ? { kind: 'climb', i, at } : null)}
+				/>
+				{#if milestones.length}
+					<p class="mt-3 text-[12px] text-muted-foreground">
+						{#each milestones as m, i}{i ? ' · ' : ''}<span class="text-foreground">{say(m.at)}</span> on {dayName(m.iso)}{/each}
+					</p>
+				{/if}
+			</div>
+		</section>
+	{/if}
 
 	<div class="grid gap-6 sm:grid-cols-[3fr_2fr]">
 		<section class="flex flex-col gap-3">
@@ -462,6 +513,17 @@
 		{:else}
 			<Breakdown title={dayName(point.iso, true)} value="Nothing" />
 		{/if}
+	{:else if point?.kind === 'climb'}
+		{@const c = climb[point.i]}
+		{@const n = c.parts.reduce((a, b) => a + b, 0)}
+		{@const was = point.i ? climb[point.i - 1].parts.reduce((a, b) => a + b, 0) : 0}
+		<Breakdown
+			title="By {dayName(c.iso, true)}"
+			value={say(n)}
+			fmt={say}
+			parts={series.map((s, j) => ({ name: s.name, n: c.parts[j], color: s.color })).filter((p) => p.n > 0)}
+			foot={[n > was ? `${say(n - was)} that day` : 'Nothing that day']}
+		/>
 	{:else if point?.kind === 'clock'}
 		{@const parts = clock[point.day][point.hour]}
 		{@const n = parts.reduce((a, b) => a + b, 0)}

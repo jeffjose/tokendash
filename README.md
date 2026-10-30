@@ -112,6 +112,7 @@ What it does not see: claude.ai chats, and machines it was not run on.
 | A year of days, a square each | `src/lib/components/year.svelte` |
 | Bars stacked by tool, maker or model (days, hours, weekdays) | `src/lib/components/bars.svelte`, `src/lib/split.ts` |
 | The week hour by hour | `src/lib/components/clock.svelte` |
+| All of it, added up from the first day | `src/lib/components/climb.svelte` |
 | What a mark is made of, under the pointer | `src/lib/components/hover.svelte`, `breakdown.svelte` |
 | The marks of the tools and makers | `src/lib/marks.ts`, `src/lib/components/mark.svelte` |
 | What the tokens would have cost at API prices (`pnpm prices` takes new ones) | `src/lib/prices.json`, `collect/prices.ts` |
