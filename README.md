@@ -1,6 +1,6 @@
 # tokendash
 
-What you have spent on Claude Code, a day at a time, on a page that is yours:
+What you have spent on Claude Code, Codex and OpenCode, a day at a time, on a page that is yours:
 `/<github-username>`. A GitHub username is the handle because it is already
 one person's, and no one else can have it.
 
@@ -9,7 +9,7 @@ to send theirs, come later.
 
 ```sh
 pnpm install
-pnpm collect jeffjose   # count this machine's Claude Code transcripts into static/data/jeffjose.json
+pnpm collect jeffjose   # count this machine's coding tools into static/data/jeffjose.json
 pnpm dev                # http://localhost:5173/jeffjose
 pnpm check
 pnpm build
@@ -17,19 +17,27 @@ pnpm build
 
 ## Where the numbers come from
 
-Claude Code writes every response it gets to a transcript in
-`~/.claude/projects/`, with what it cost in tokens: read in, written out, and
-put in or read back from the prompt cache. `collect/index.ts` adds those
-up by day, tool and model. Only the counts are kept; no project names, paths or
-words from a session.
+Each coding tool keeps a record of what every response cost in tokens: read
+in, written out, and put in or read back from the prompt cache.
+`collect/index.ts` adds them up by day, tool and model, with how many
+responses came in each hour of the day. Only the counts are kept; no project
+names, paths or words from a session.
 
-Claude Code deletes a transcript a month or so after it was last used, so the
-collector lays each run over the file the last one wrote and keeps the larger
-of every count. Run it at least every few weeks (or on a schedule) and the
-history only grows.
+| Tool | What is read | |
+|---|---|---|
+| Claude Code | `~/.claude/projects/**/*.jsonl` | `collect/claude-code.ts` |
+| Codex | `~/.codex/sessions/**/*.jsonl` | `collect/codex.ts` |
+| OpenCode | `~/.local/share/opencode/opencode.db` | `collect/opencode.ts` |
 
-What it does not see: Claude Code on other machines, and claude.ai chats.
+A model is kept by its own id, and the page says who made it: OpenCode can run
+Opus as well as its own models.
 
+The tools delete their records after a while (Claude Code a month or so after
+a transcript was last used), so the collector lays each run over the file the
+last one wrote and keeps the larger of every count. Run it at least every few
+weeks (or on a schedule) and the history only grows.
+
+What it does not see: the tools on other machines, and claude.ai chats.
 ## The page
 
 | Piece | Where |

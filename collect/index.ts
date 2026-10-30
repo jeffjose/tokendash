@@ -14,9 +14,11 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { claudeCode } from './claude-code.ts';
+import { codex } from './codex.ts';
+import { opencode } from './opencode.ts';
 import { KEYS, empty, zone, type Counted, type Day, type Spent, type Tokens } from './count.ts';
 
-const TOOLS: Record<string, () => Promise<Counted>> = { 'claude-code': claudeCode };
+const TOOLS: Record<string, () => Promise<Counted>> = { 'claude-code': claudeCode, codex, opencode };
 
 const handle = process.argv[2];
 if (!handle || !/^[a-z\d](?:[a-z\d-]{0,38})$/i.test(handle)) {
@@ -47,7 +49,8 @@ for (const [tool, count] of Object.entries(TOOLS)) {
 			models[model] = Object.fromEntries(KEYS.map((k) => [k, Math.max(was[k], t[k])])) as Tokens;
 			responses += t.messages;
 		}
-		day.tools[tool] = { sessions: Math.max(old?.sessions ?? 0, d.sessions.size), models };
+		const hours = d.hours.map((n, h) => Math.max(old?.hours?.[h] ?? 0, n));
+		day.tools[tool] = { sessions: Math.max(old?.sessions ?? 0, d.sessions.size), hours, models };
 		kept.set(date, day);
 	}
 	said.push(`${tool}: ${days.size} days, ${responses} responses on disk`);
