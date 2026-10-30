@@ -4,6 +4,7 @@
 	import AppearanceMenu from '#lib/components/appearance-menu.svelte';
 	import Bars from '#lib/components/bars.svelte';
 	import Breakdown from '#lib/components/breakdown.svelte';
+	import Clock from '#lib/components/clock.svelte';
 	import Hover from '#lib/components/hover.svelte';
 	import Mark from '#lib/components/mark.svelte';
 	import Year from '#lib/components/year.svelte';
@@ -82,6 +83,20 @@
 	);
 	const hoursAll = $derived(hours.reduce((n, h) => n + h.parts.reduce((a, b) => a + b, 0), 0));
 	const busiestHour = $derived(hours.reduce((a, h, i) => (h.parts.reduce((x, y) => x + y, 0) > hours[a].parts.reduce((x, y) => x + y, 0) ? i : a), 0));
+	// And by the day of the week too, Monday first: each hour of each weekday, by tool, over every week.
+	const clock = $derived.by(() => {
+		const g = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => toolSeries.map(() => 0)));
+		for (const s of sessions) {
+			const w = (dateOf(s.date).getDay() + 6) % 7;
+			const j = toolSeries.findIndex((t) => t.keys.includes(s.tool));
+			s.hours.forEach((n, h) => (g[w][h][j] += n));
+		}
+		return g;
+	});
+	const busiestDay = $derived.by(() => {
+		const per = clock.map((row) => row.flat().reduce((a, b) => a + b, 0));
+		return per.indexOf(Math.max(...per));
+	});
 
 	// The days of the week, Monday first: what was spent on each, over every one of them.
 	const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -117,7 +132,7 @@
 	const listed = $derived([...days].reverse().slice(0, every ? undefined : 14));
 
 	// The hover card: what is under the pointer, and where.
-	type Point = ({ kind: 'day'; iso: string } | { kind: 'hour'; i: number } | { kind: 'week'; i: number }) & { at: DOMRect; below?: boolean };
+	type Point = ({ kind: 'day'; iso: string } | { kind: 'clock'; day: number; hour: number } | { kind: 'week'; i: number }) & { at: DOMRect; below?: boolean };
 	let point = $state<Point | null>(null);
 
 	// A part of the whole too small to say as a whole number is said to a tenth, and one too small for that as under it.
@@ -238,17 +253,17 @@
 
 	<div class="grid gap-6 sm:grid-cols-[3fr_2fr]">
 		<section class="flex flex-col gap-3">
-			<h2 class={HEADING}>When in the day</h2>
+			<h2 class={HEADING}>When in the week</h2>
 			<div class="{CARD} p-5">
 				{#if hoursAll}
-					<Bars
-						bars={hours}
-						colors={toolSeries.map((s) => s.color)}
-						height="h-24"
-						ticks={[0, 6, 12, 18].map((h) => ({ at: h, label: hourName(h) })).concat([{ at: 23, label: '' }])}
-						onpoint={(i, at) => (point = i !== null && at ? { kind: 'hour', i, at } : null)}
+					<Clock
+						grid={clock.map((row) => row.map((p) => p.reduce((a, b) => a + b, 0)))}
+						hue={(tool && colorOf(tool)) || undefined}
+						onpoint={(at, rect) => (point = at && rect ? { kind: 'clock', ...at, at: rect } : null)}
 					/>
-					<p class="mt-3 text-[12px] text-muted-foreground">Busiest from {hourName(busiestHour)} to {hourName((busiestHour + 1) % 24)}</p>
+					<p class="mt-3 text-[12px] text-muted-foreground">
+						Busiest from {hourName(busiestHour)} to {hourName((busiestHour + 1) % 24)}, and on {WEEKDAYS[busiestDay]}s
+					</p>
 				{:else}
 					<p class="text-[13px] text-muted-foreground">Not counted for these days.</p>
 				{/if}
@@ -447,13 +462,14 @@
 		{:else}
 			<Breakdown title={dayName(point.iso, true)} value="Nothing" />
 		{/if}
-	{:else if point?.kind === 'hour'}
-		{@const h = hours[point.i]}
-		{@const n = h.parts.reduce((a, b) => a + b, 0)}
+	{:else if point?.kind === 'clock'}
+		{@const parts = clock[point.day][point.hour]}
+		{@const n = parts.reduce((a, b) => a + b, 0)}
 		<Breakdown
-			title="{hourName(point.i)} to {hourName((point.i + 1) % 24)}"
+			title="{WEEKDAYS[point.day]}s, {hourName(point.hour)} to {hourName((point.hour + 1) % 24)}"
 			value={plural(n, 'response')}
-			parts={toolSeries.map((s, j) => ({ name: s.name, n: h.parts[j], color: s.color })).filter((p) => p.n > 0)}
+			fmt={whole}
+			parts={toolSeries.map((s, j) => ({ name: s.name, n: parts[j], color: s.color })).filter((p) => p.n > 0)}
 			foot={[`${percent(n / Math.max(hoursAll, 1))} of every response`]}
 		/>
 	{:else if point?.kind === 'week'}
