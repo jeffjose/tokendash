@@ -316,19 +316,19 @@
 			</div>
 		</div>
 		<div class="{CARD} overflow-x-auto">
-			<table class="w-full min-w-[640px] text-[13px]">
+			<table class="w-full text-[13px] sm:min-w-[640px]">
 				<thead>
 					<tr class="border-b border-border/50 text-left text-[12px] text-muted-foreground [&>th]:px-3 [&>th]:py-2.5 [&>th]:font-normal [&>th:first-child]:pl-5 [&>th:last-child]:pr-5">
 						<th>{table === 'day' ? 'Day' : 'Model'}</th>
-						{#if table === 'model'}<th>Tools</th>{/if}
+						{#if table === 'model'}<th class="max-sm:hidden">Tools</th>{/if}
 						<th class="text-right">Tokens</th>
-						{#if table === 'model'}<th class="text-right">Share</th>{/if}
-						<th class="text-right">From cache</th>
-						<th class="text-right">To cache</th>
-						<th class="text-right">Out</th>
-						<th class="text-right">In</th>
-						<th class="text-right">Responses</th>
-						{#if table === 'day'}<th class="text-right">Sessions</th>{/if}
+						{#if table === 'model'}<th class="text-right max-sm:pr-5">Share</th>{/if}
+						<th class="text-right max-sm:hidden">From cache</th>
+						<th class="text-right max-sm:hidden">To cache</th>
+						<th class="text-right max-sm:hidden">Out</th>
+						<th class="text-right max-sm:hidden">In</th>
+						<th class="text-right {table === 'model' ? 'max-sm:hidden' : 'max-sm:pr-5'}">Responses</th>
+						{#if table === 'day'}<th class="text-right max-sm:hidden">Sessions</th>{/if}
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-border/50">
@@ -340,19 +340,29 @@
 								aria-expanded={open === d.date}
 							>
 								<td class="whitespace-nowrap">
-									<span class="mr-1.5 inline-block text-muted-foreground transition-transform {open === d.date ? 'rotate-90' : ''}">›</span>{dayName(d.date, true)}
+									<span class="mr-1.5 inline-block text-muted-foreground transition-transform {open === d.date ? 'rotate-90' : ''}">›</span><span class="sm:hidden">{dayName(d.date, true).replace(/, \d{4}$/, '')}</span><span class="max-sm:hidden">{dayName(d.date, true)}</span>
 								</td>
 								{@render cells(d, false)}
-								<td class="text-right text-muted-foreground">{whole(d.sessions)}</td>
+								<td class="text-right text-muted-foreground max-sm:hidden">{whole(d.sessions)}</td>
 							</tr>
 							{#if open === d.date}
+								<!-- On a phone the kinds of token and the sessions have no columns: the day says them when it is opened. -->
+								<tr class="bg-foreground/[0.02] text-[12px] text-muted-foreground sm:hidden">
+									<td colspan="3" class="px-5 pt-2.5 pb-1">
+										<div class="grid grid-cols-2 gap-x-6 gap-y-0.5 pl-4">
+											{#each [['From cache', short(d.cache_read)], ['To cache', short(d.cache_write)], ['Out', short(d.output)], ['In', short(d.input)], ['Sessions', whole(d.sessions)]] as const as [name, n]}
+												<div class="flex justify-between gap-3"><span>{name}</span><span class="text-foreground">{n}</span></div>
+											{/each}
+										</div>
+									</td>
+								</tr>
 								{#each group(d.rows, 'model').flatMap((m) => group(d.rows.filter((r) => r.model === m.name), 'tool').map((t) => ({ ...t, model: m.name }))) as m}
 									<tr class="bg-foreground/[0.02] text-muted-foreground [&>td]:px-3 [&>td]:py-2 [&>td:first-child]:pl-5 [&>td:last-child]:pr-5">
 										<td class="whitespace-nowrap pl-9!">
 											<span class="flex items-center gap-1.5"><Mark of={m.name} class="size-3" />{modelName(m.model)}</span>
 										</td>
 										{@render cells(m, true)}
-										<td></td>
+										<td class="max-sm:hidden"></td>
 									</tr>
 								{/each}
 							{/if}
@@ -363,9 +373,9 @@
 								<td class="whitespace-nowrap" data-tip={m.name}>
 									<span class="flex items-center gap-2"><span class="text-muted-foreground"><Mark of={makerOf(m.name)} class="size-3.5" /></span>{modelName(m.name)}</span>
 								</td>
-								<td class="whitespace-nowrap text-muted-foreground">{names(group(rows.filter((r) => r.model === m.name), 'tool').map((t) => toolName(t.name)))}</td>
+								<td class="whitespace-nowrap text-muted-foreground max-sm:hidden">{names(group(rows.filter((r) => r.model === m.name), 'tool').map((t) => toolName(t.name)))}</td>
 								<td class="text-right" data-tip={whole(total(m))}>{short(total(m))}</td>
-								<td class="text-right text-muted-foreground">{percent(total(m) / Math.max(total(all), 1))}</td>
+								<td class="text-right text-muted-foreground max-sm:pr-5">{percent(total(m) / Math.max(total(all), 1))}</td>
 								{@render cells(m, true, true)}
 							</tr>
 						{/each}
@@ -448,12 +458,13 @@
 	</div>
 {/snippet}
 
-<!-- A table row's counts, each short with the whole of it under the pointer. A day's own total comes first; a model's is said before its share. -->
+<!-- A table row's counts, each short with the whole of it under the pointer. A day's own total comes first; a model's is said before its share.
+     On a phone only the total and the responses are columns, and a model's responses go too, for its share. -->
 {#snippet cells(t: Tokens, quiet: boolean, skipTotal = false)}
 	{#if !skipTotal}<td class="text-right {quiet ? '' : 'font-medium'}" data-tip={whole(total(t))}>{short(total(t))}</td>{/if}
-	<td class="text-right text-muted-foreground" data-tip={whole(t.cache_read)}>{short(t.cache_read)}</td>
-	<td class="text-right text-muted-foreground" data-tip={whole(t.cache_write)}>{short(t.cache_write)}</td>
-	<td class="text-right text-muted-foreground" data-tip={whole(t.output)}>{short(t.output)}</td>
-	<td class="text-right text-muted-foreground" data-tip={whole(t.input)}>{short(t.input)}</td>
-	<td class="text-right text-muted-foreground">{whole(t.messages)}</td>
+	<td class="text-right text-muted-foreground max-sm:hidden" data-tip={whole(t.cache_read)}>{short(t.cache_read)}</td>
+	<td class="text-right text-muted-foreground max-sm:hidden" data-tip={whole(t.cache_write)}>{short(t.cache_write)}</td>
+	<td class="text-right text-muted-foreground max-sm:hidden" data-tip={whole(t.output)}>{short(t.output)}</td>
+	<td class="text-right text-muted-foreground max-sm:hidden" data-tip={whole(t.input)}>{short(t.input)}</td>
+	<td class="text-right text-muted-foreground {skipTotal ? 'max-sm:hidden' : 'max-sm:pr-5'}">{whole(t.messages)}</td>
 {/snippet}
