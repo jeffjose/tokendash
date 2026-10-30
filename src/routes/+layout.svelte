@@ -3,7 +3,8 @@
 	import '@fontsource-variable/fira-code';
 	import '../app.css';
 	import Tooltips from '#lib/components/tooltips.svelte';
-	import { PALETTE_CSS } from '#lib/palette.js';
+	import { accentCss, PALETTE_CSS } from '#lib/palette.js';
+	import { ACCENTS } from '#lib/ui.svelte.js';
 	import { SPRITE } from '#lib/icons.js';
 
 	let { children } = $props();
@@ -13,9 +14,9 @@
 	// when there is something to work in.
 </script>
 
-<!-- Every identity color, as it is on a light page and on a dark one (`palette.ts`). -->
+<!-- Every identity color, as it is on a light page and on a dark one, and the accents that can be chosen (`palette.ts`). -->
 <svelte:head>
-	{@html `<style>${PALETTE_CSS}</style>`}
+	{@html `<style>${PALETTE_CSS}${accentCss(ACCENTS.map((a) => a.value))}</style>`}
 </svelte:head>
 
 <Tooltips />

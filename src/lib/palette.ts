@@ -87,3 +87,15 @@ export function tone(name: string): string {
 	return `--who: var(--hue-${hue}-ink); --who-surface: var(--hue-${hue}-surface); --who-solid: ${dark(hue)[`${hue}9`]}; --who-on-solid: ${BRIGHT.includes(hue) ? '#1a1300' : '#ffffff'}`;
 }
 
+
+/**
+ * The app's own color where another is chosen (`ACCENTS` in `ui.svelte.ts`): a hue's step 11 on each page, over
+ * whatever the look says. `:root:root` so that it outranks a look's own (`:root.dark[data-look]`) wherever the two
+ * come in the page.
+ */
+export function accentCss(hues: readonly string[]): string {
+	return hues
+		.filter((h): h is Hue => (HUES as readonly string[]).includes(h))
+		.map((h) => `:root:root:not(.dark)[data-accent='${h}']{--brand:${light(h)[`${h}11`]}}:root:root.dark[data-accent='${h}']{--brand:${dark(h)[`${h}11`]}}`)
+		.join('');
+}

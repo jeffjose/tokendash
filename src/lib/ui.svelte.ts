@@ -254,6 +254,23 @@ export type Look = (typeof LOOKS)[number]['value'];
 /** The app's own look, worn when no other is: the page says nothing of it. */
 const OWN: Look = 'own';
 
+/**
+ * The app's own color, as chosen: the look's own (sage, or the frost of Nord), or one of a few Radix hues. Not the
+ * four the status colors are (green, blue, amber, red: `app.css`), since nothing that is not a status may look like
+ * one. Each is its step 11 on each page, the step Radix makes to be read: pale on a dark page, deep on a light one,
+ * as the sage is.
+ */
+export const ACCENTS = [
+	{ value: 'own', label: 'The look’s own' },
+	{ value: 'teal', label: 'Teal' },
+	{ value: 'cyan', label: 'Cyan' },
+	{ value: 'iris', label: 'Iris' },
+	{ value: 'violet', label: 'Violet' },
+	{ value: 'plum', label: 'Plum' },
+	{ value: 'pink', label: 'Pink' }
+] as const;
+export type Accent = (typeof ACCENTS)[number]['value'];
+
 type Wearing = { mode: Mode; look: Look };
 
 /**
@@ -270,12 +287,14 @@ class Appearance {
 	/** As the system has it, light or dark, until another is chosen. */
 	mode = $state<Mode>('system');
 	look = $state<Look>(OWN);
+	accent = $state<Accent>('own');
 	/** Whether the page is dark just now, whatever was asked for: for drawing a look as it would be. */
 	dark = $state(false);
 
 	constructor() {
 		this.mode = MODES.find((m) => m.value === recall('mode'))?.value ?? 'system';
 		this.look = LOOKS.find((l) => l.value === recall('look'))?.value ?? OWN;
+		this.accent = ACCENTS.find((a) => a.value === recall('accent'))?.value ?? 'own';
 		if (typeof window === 'undefined') return;
 		// Following the system means following it when it changes, too.
 		window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => this.apply());
@@ -312,6 +331,8 @@ class Appearance {
 		// A look says which it is, for the stylesheet to dress the page by; the app's own says nothing.
 		if (look === OWN) delete document.documentElement.dataset.look;
 		else document.documentElement.dataset.look = look;
+		if (this.accent === 'own') delete document.documentElement.dataset.accent;
+		else document.documentElement.dataset.accent = this.accent;
 	}
 
 	/**
@@ -329,6 +350,13 @@ class Appearance {
 		this.look = look;
 		remember('mode', mode);
 		remember('look', look);
+		this.apply();
+	}
+
+	/** Keep an accent: worn at once, over whatever look. */
+	setAccent(accent: Accent) {
+		this.accent = accent;
+		remember('accent', accent);
 		this.apply();
 	}
 }

@@ -34,6 +34,9 @@
 				root.classList.toggle("dark", dark);
 				// The app's own look says nothing; any other says which it is, for the stylesheet.
 				if (look && look !== "own" && /^[a-z-]{1,32}$/.test(look)) root.dataset.look = look;
+				// And the accent over it, where one was chosen (`ACCENTS` in `ui.svelte.ts`).
+				const accent = localStorage.getItem("accent");
+				if (accent && accent !== "own" && /^[a-z]{1,16}$/.test(accent)) root.dataset.accent = accent;
 				// The face it is set in, where one was chosen (`fonts.ts`): asked for now, so that the page does not come up in one and change to another.
 				// (Which face it is is said on the page, for what is set differently in one: `app.css`.)
 				root.dataset.font = localStorage.getItem("font") || "geist";

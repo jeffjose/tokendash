@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { replaceState } from '$app/navigation';
 	import { page } from '$app/state';
+	import AppearanceMenu from '#lib/components/appearance-menu.svelte';
 	import Bars from '#lib/components/bars.svelte';
 	import Breakdown from '#lib/components/breakdown.svelte';
 	import Hover from '#lib/components/hover.svelte';
@@ -136,9 +137,9 @@
 <svelte:window onscroll={() => (point = null)} />
 
 <main class="mx-auto flex max-w-[880px] flex-col gap-6 px-4 py-10 sm:px-6 sm:py-14">
-	<header class="flex flex-wrap items-center justify-between gap-4">
+	<header class="flex items-start justify-between gap-4">
 		<div class="flex min-w-0 items-center gap-4">
-			<img src="https://github.com/{u.handle}.png?size=128" alt="" class="size-16 rounded-full bg-muted ring-1 ring-foreground/10" />
+			<img src="https://github.com/{u.handle}.png?size=128" alt="" class="size-16 shrink-0 rounded-full bg-muted ring-1 ring-foreground/10" />
 			<div class="min-w-0">
 				<h1 class="truncate text-[22px] font-medium tracking-tight">{u.handle}</h1>
 				<p class="text-[13px] text-muted-foreground">
@@ -147,17 +148,21 @@
 				</p>
 			</div>
 		</div>
-		{#if tools.length > 1}
-			<div class="{SEG} w-fit max-w-full overflow-x-auto [scrollbar-width:none]">
-				<button class="{SEG_ITEM} px-2.5 {tool === null ? SEG_ON : SEG_OFF}" onclick={() => only(null)}>All</button>
-				{#each tools as t}
-					<button class="{SEG_ITEM} flex items-center gap-1.5 px-2.5 {tool === t ? SEG_ON : SEG_OFF}" onclick={() => only(t)}>
-						<Mark of={t} class="size-3" />{toolName(t)}
-					</button>
-				{/each}
-			</div>
-		{/if}
+		<AppearanceMenu />
 	</header>
+
+	<!-- On a row of its own, always: beside the name it went up and down with the length of the line under the name,
+	     which changes with the tool chosen, so pressing one moved the page. -->
+	{#if tools.length > 1}
+		<div class="{SEG} -mt-2 w-fit max-w-full overflow-x-auto [scrollbar-width:none]">
+			<button class="{SEG_ITEM} px-2.5 {tool === null ? SEG_ON : SEG_OFF}" onclick={() => only(null)}>All</button>
+			{#each tools as t}
+				<button class="{SEG_ITEM} flex items-center gap-1.5 px-2.5 {tool === t ? SEG_ON : SEG_OFF}" onclick={() => only(t)}>
+					<Mark of={t} class="size-3" />{toolName(t)}
+				</button>
+			{/each}
+		</div>
+	{/if}
 
 	<section class="grid grid-cols-2 sm:grid-cols-4 {CARD} divide-foreground/10 max-sm:[&>*:nth-child(-n+2)]:border-b max-sm:[&>*]:border-foreground/10 sm:divide-x">
 		{@render tile('Tokens', short(total(all)), `${plural(all.messages, 'response')}`, whole(total(all)))}
