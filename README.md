@@ -19,8 +19,8 @@ pnpm build
 
 Claude Code writes every response it gets to a transcript in
 `~/.claude/projects/`, with what it cost in tokens: read in, written out, and
-put in or read back from the prompt cache. `collect/claude-code.ts` adds those
-up by day and by model. Only the counts are kept; no project names, paths or
+put in or read back from the prompt cache. `collect/index.ts` adds those
+up by day, tool and model. Only the counts are kept; no project names, paths or
 words from a session.
 
 Claude Code deletes a transcript a month or so after it was last used, so the

@@ -2,10 +2,10 @@
 	import Year from '#lib/components/year.svelte';
 	import Month from '#lib/components/month.svelte';
 	import { CARD, HEADING, ROWS } from '#lib/styles.js';
-	import { addDays, dateOf, isoOf, modelName, short, streaks, total, whole } from '#lib/usage.js';
+	import { addDays, dateOf, daysOf, group, isoOf, modelName, short, streaks, total, whole } from '#lib/usage.js';
 
 	let { data } = $props();
-	const u = $derived(data.usage);
+	const u = $derived({ ...data.usage, days: daysOf(data.usage.rows, data.usage.sessions), models: group(data.usage.rows, 'model') });
 
 	// Today on the clock the days were counted on, so a day is not cut at someone else's midnight.
 	const today = $derived(dateOf(new Intl.DateTimeFormat('en-CA', { timeZone: u.zone }).format(new Date())));
@@ -73,7 +73,7 @@
 			<h2 class={HEADING}>By model</h2>
 			<div class={ROWS}>
 				{#each u.models as m}
-					{@render share(modelName(m.model), total(m), modelsTotal, `${m.model} · ${whole(m.messages)} responses`)}
+					{@render share(modelName(m.name), total(m), modelsTotal, `${m.name} · ${whole(m.messages)} responses`)}
 				{/each}
 			</div>
 		</section>
