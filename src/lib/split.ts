@@ -1,15 +1,17 @@
 import { group, modelName, toolName, type Row } from '#lib/usage.js';
 
 /**
- * What a chart's bars are split by: the tool, who made the model, or the model. Each part is a step of the one
+ * What a chart's bars are split by: the tool, who made the model, the model, or the machine it was used on.
+ * Each part is a step of the one
  * hue, the app's own, mixed toward the card: the most is the full color at the bottom of a bar, the next lighter
  * over it. Four steps are as many as the eye tells apart, so past four the least are one part, "3 more".
  */
-export type Split = 'tool' | 'maker' | 'model';
+export type Split = 'tool' | 'maker' | 'model' | 'machine';
 export const SPLITS: { id: Split; name: string }[] = [
 	{ id: 'tool', name: 'Tool' },
 	{ id: 'maker', name: 'Maker' },
-	{ id: 'model', name: 'Model' }
+	{ id: 'model', name: 'Model' },
+	{ id: 'machine', name: 'Machine' }
 ];
 
 export const SHADES = [

@@ -10,3 +10,4 @@ vite.config.ts.timestamp-*
 
 # What the collector counts is one person's own, and changes every run: kept out of git until there is somewhere better for it.
 /static/data
+/data/

@@ -1,25 +1,82 @@
 # tokendash
 
-What you have spent on Claude Code, Codex and OpenCode, a day at a time, on a page that is yours:
-`/<github-username>`. A GitHub username is the handle because it is already
-one person's, and no one else can have it.
+What you have spent on Claude Code, Codex and OpenCode, a day at a time, on a
+page that is yours: `/<github-username>`. A GitHub username is the handle
+because it is already one person's, and no one else can have it.
 
-For now it is one person, read from a file. A database, and a way for others
-to send theirs, come later.
+For now it is one person, read from a file. A server that takes the reports,
+and a way for others to sign up, come later; the collector that will send
+them is here.
 
 ```sh
 pnpm install
-pnpm collect jeffjose   # count this machine's coding tools into static/data/jeffjose.json
-pnpm dev                # http://localhost:5173/jeffjose
+pnpm collect jeffjose        # count this machine into static/data/jeffjose.json
+pnpm pull skyfall jeffjose   # and another machine's, over ssh
+pnpm dev                     # http://localhost:5173/jeffjose
 pnpm check
 pnpm build
 ```
+
+## The collector
+
+`collect/index.ts` is what each person runs, on each machine they use. It
+needs Node 22.5 or later and nothing else.
+
+```sh
+node collect/index.ts count [--print]   # count this machine (and print the file it would send)
+node collect/index.ts setup <url>       # where to send it: https://…/r/<your id>
+node collect/index.ts report            # count, and send
+node collect/index.ts schedule          # report every hour
+node collect/index.ts unschedule
+```
+
+`schedule` uses what the system has: a launch agent on macOS, a systemd user
+timer on Linux (a crontab line where there is none), a scheduled task on
+Windows. Each runs the same node and script by their full paths.
+
+A machine makes an id and an Ed25519 key the first time, and keeps them, with
+what it has counted, in its settings folder (`~/.config/tokendash`,
+`~/Library/Application Support/tokendash`, `%APPDATA%\tokendash`, or
+`$TOKENDASH_HOME`). What it sends is one file: its id and name, its time zone,
+its days, its public key, and a signature over all of it.
+
+### More than one machine
+
+Every machine sends its own file under its own id, and a page is those files
+side by side: their counts add up, and the page can split by machine. Within
+one machine a run keeps the larger of each count (below); across machines they
+are added, since two machines never see the same response.
+
+`collect/local.ts` does by hand what the server will do: it puts each
+machine's file in `data/<username>/`, checks it (`collect/check.ts`), and
+writes the page's file from the ones that pass. `pnpm pull <host>` copies the
+collector to another machine over ssh, runs it there, and brings back what it
+would have sent.
+
+### What is checked
+
+Nothing can prove the counts are true: the collector runs on the person's own
+machine, and anyone can write a file by hand. So the checks make a made-up file
+hard to pass off, not impossible:
+
+- **The signature**, against the key the machine first came with (kept in
+  `data/<username>/keys.json`). No one else can send under your machine, and an
+  edit to a file after it was signed is caught. You can still sign a file you
+  made up yourself, on your own machine.
+- **Counts a tool could have written:** no day that has not happened yet, no
+  response bigger than a model's window, no more than one a second in an hour,
+  the hours adding up to the day, no more sessions than responses.
+
+What a server adds later: only the address with your id in it takes reports for
+your page; a day more than a month old cannot grow (the tools have deleted the
+records it could have been counted from); and the page says the numbers are
+reported by you.
 
 ## Where the numbers come from
 
 Each coding tool keeps a record of what every response cost in tokens: read
 in, written out, and put in or read back from the prompt cache.
-`collect/index.ts` adds them up by day, tool and model, with how many
+The collector adds them up by day, tool and model, with how many
 responses came in each hour of the day. Only the counts are kept; no project
 names, paths or words from a session.
 
@@ -37,7 +94,7 @@ a transcript was last used), so the collector lays each run over the file the
 last one wrote and keeps the larger of every count. Run it at least every few
 weeks (or on a schedule) and the history only grows.
 
-What it does not see: the tools on other machines, and claude.ai chats.
+What it does not see: claude.ai chats, and machines it was not run on.
 ## The page
 
 | Piece | Where |

@@ -1,19 +1,22 @@
 /**
- * One person's usage as the collector writes it (`collect/index.ts`), and what
- * the page reads off it. A file per person in `static/data/` for now; a
- * database later, with the same shape coming out of it.
+ * One person's usage as the collectors send it (`collect/`), and what the page
+ * reads off it. A file per person in `static/data/` for now, made of one file
+ * from each of their machines; a database later, with the same shape coming
+ * out of it.
  */
 
 export type Tokens = { input: number; output: number; cache_write: number; cache_read: number; messages: number };
-/** A day as it is kept: for each tool, its sessions and what each model spent. */
+/** A day as a machine keeps it: for each tool, its sessions, its responses by the hour, and what each model spent. */
 export type Kept = { date: string; tools: Record<string, { sessions: number; hours?: number[]; models: Record<string, Tokens> }> };
-export type File = { handle: string; generated_at: string; zone: string; days: Kept[] };
+/** What one machine counted, on its own clock. */
+export type Machine = { machine: { id: string; name: string }; zone: string; generated_at: string; days: Kept[] };
+export type File = { handle: string; generated_at: string; machines: Machine[] };
 
-/** One model in one tool on one day: the grain everything on the page is added up from. */
-export type Row = Tokens & { date: string; tool: string; model: string; maker: string };
-/** One tool's sessions on one day, and its responses in each hour of it. A session is counted by its tool, not by its model. */
-export type Sessions = { date: string; tool: string; sessions: number; hours: number[] };
-export type Usage = { handle: string; generated_at: string; zone: string; rows: Row[]; sessions: Sessions[] };
+/** One model in one tool on one machine on one day: the grain everything on the page is added up from. */
+export type Row = Tokens & { date: string; tool: string; model: string; maker: string; machine: string };
+/** One tool's sessions on one machine on one day, and its responses in each hour of it. A session is counted by its tool, not by its model. */
+export type Sessions = { date: string; tool: string; machine: string; sessions: number; hours: number[] };
+export type Usage = { handle: string; generated_at: string; zone: string; machines: string[]; rows: Row[]; sessions: Sessions[] };
 /** Anything added up: a day, a tool, a model. */
 export type Sum = Tokens & { sessions: number };
 export type Day = Sum & { date: string; rows: Row[] };
@@ -26,17 +29,27 @@ export function sum(rows: Tokens[]): Tokens {
 	return s;
 }
 
-/** The kept file, laid out flat. */
+/**
+ * The machines' files, laid out flat and added up as one. A machine is said by its name, and by its name with the
+ * end of its id where two have the same one. Each machine's days are its own clock's: a day is the day it was where
+ * the work was done.
+ */
 export function read(file: File): Usage {
 	const rows: Row[] = [];
 	const sessions: Sessions[] = [];
-	for (const d of file.days) {
-		for (const [tool, t] of Object.entries(d.tools)) {
-			sessions.push({ date: d.date, tool, sessions: t.sessions, hours: t.hours ?? [] });
-			for (const [model, n] of Object.entries(t.models)) rows.push({ ...n, date: d.date, tool, model, maker: makerOf(model) });
+	const named = (m: Machine) => (file.machines.filter((o) => o.machine.name === m.machine.name).length > 1 ? `${m.machine.name} ${m.machine.id.slice(0, 4)}` : m.machine.name);
+	for (const m of file.machines) {
+		const machine = named(m);
+		for (const d of m.days) {
+			for (const [tool, t] of Object.entries(d.tools)) {
+				sessions.push({ date: d.date, tool, machine, sessions: t.sessions, hours: t.hours ?? [] });
+				for (const [model, n] of Object.entries(t.models)) rows.push({ ...n, date: d.date, tool, model, maker: makerOf(model), machine });
+			}
 		}
 	}
-	return { handle: file.handle, generated_at: file.generated_at, zone: file.zone, rows, sessions };
+	// "Today" is on the clock of the machine heard from last.
+	const zone = file.machines[0]?.zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+	return { handle: file.handle, generated_at: file.generated_at, zone, machines: file.machines.map(named), rows, sessions };
 }
 
 /** Each day that had anything, oldest first, with what it was made of. */
@@ -49,13 +62,13 @@ export function daysOf(rows: Row[], sessions: Sessions[]): Day[] {
 		d.rows.push(r);
 	}
 	// Only the sessions of tools that are still in: a day read for Codex alone has Codex's sessions, not Claude Code's.
-	const tools = new Set(rows.map((r) => `${r.date} ${r.tool}`));
-	for (const s of sessions) if (tools.has(`${s.date} ${s.tool}`)) by.get(s.date)!.sessions += s.sessions;
+	const tools = new Set(rows.map((r) => `${r.date} ${r.tool} ${r.machine}`));
+	for (const s of sessions) if (tools.has(`${s.date} ${s.tool} ${s.machine}`)) by.get(s.date)!.sessions += s.sessions;
 	return [...by.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
 /** The rows added up by one of what they are (tool, maker, model), the most first. */
-export function group(rows: Row[], by: 'tool' | 'maker' | 'model'): (Tokens & { name: string })[] {
+export function group(rows: Row[], by: 'tool' | 'maker' | 'model' | 'machine'): (Tokens & { name: string })[] {
 	const parts = new Map<string, Row[]>();
 	for (const r of rows) parts.set(r[by], [...(parts.get(r[by]) ?? []), r]);
 	return [...parts].map(([name, rs]) => ({ name, ...sum(rs) })).sort((a, b) => total(b) - total(a));
@@ -111,7 +124,7 @@ export function modelName(id: string): string {
 	const g = bare.match(/^gpt-([\d.]+)(?:-(.+))?$/);
 	if (g) return `GPT-${g[1]}${g[2] ? ` ${g[2].split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ')}` : ''}`;
 	const o = bare.match(/^(gemini|gemma)-(.+)$/);
-	if (o) return `${o[1][0].toUpperCase()}${o[1].slice(1)} ${o[2].replace(/-it$/, '').split('-').join(' ')}`;
+	if (o) return `${o[1][0].toUpperCase()}${o[1].slice(1)} ${o[2].replace(/-it$/, '').split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ')}`;
 	return bare;
 }
 

@@ -88,6 +88,9 @@
 		group(rows, 'tool').map((t) => ({ ...t, sessions: sessions.filter((s) => s.tool === t.name).reduce((n, s) => n + s.sessions, 0) }))
 	);
 	const byMaker = $derived(group(rows, 'maker'));
+	const byMachine = $derived(
+		group(rows, 'machine').map((m) => ({ ...m, sessions: sessions.filter((s) => s.machine === m.name).reduce((n, s) => n + s.sessions, 0) }))
+	);
 	const byModel = $derived(group(rows, 'model'));
 	const KINDS = [
 		{ key: 'cache_read', name: 'Read from cache' },
@@ -175,7 +178,7 @@
 			<h2 class={HEADING}>Day by day</h2>
 			<div class="flex flex-wrap gap-2">
 				<div class={SEG}>
-					{#each SPLITS as s}
+					{#each SPLITS.filter((s) => s.id !== 'machine' || u.machines.length > 1) as s}
 						<button class="{SEG_ITEM} px-2.5 {split === s.id ? SEG_ON : SEG_OFF}" onclick={() => (chosen = s.id)}>{s.name}</button>
 					{/each}
 				</div>
@@ -257,6 +260,16 @@
 				<div class={ROWS}>
 					{#each byMaker as m}
 						{@render share(m.name, total(m), total(all), plural(m.messages, 'response'), m.name)}
+					{/each}
+				</div>
+			</section>
+		{/if}
+		{#if byMachine.length > 1}
+			<section class="flex flex-col gap-3">
+				<h2 class={HEADING}>By machine</h2>
+				<div class={ROWS}>
+					{#each byMachine as m}
+						{@render share(m.name, total(m), total(all), `${plural(m.sessions, 'session')} · ${plural(m.messages, 'response')}`, 'machine')}
 					{/each}
 				</div>
 			</section>

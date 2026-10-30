@@ -1,68 +1,51 @@
 /**
- * What the coding tools on this machine have spent, by day, tool and model.
- * Only counts leave here: no project names, no paths, no words from a session.
+ * tokendash: what the coding tools on this machine have spent, by day, tool
+ * and model, sent to your page. Only counts leave here: no project names, no
+ * paths, no words from a session.
  *
- *   node collect/index.ts <github-username>    writes static/data/<username>.json
+ *   node collect/index.ts count [--print]   count this machine (and print the file it would send)
+ *   node collect/index.ts setup <url>       where to send it: the address your page gave you
+ *   node collect/index.ts report            count, and send
+ *   node collect/index.ts schedule          report every hour, by this system's own clock
+ *   node collect/index.ts unschedule
  *
- * The tools delete their own records after a while (Claude Code a month or so
- * after a transcript's last use), so what is on disk is never the whole
- * history. Each run is laid over the file the last one wrote, and keeps the
- * larger of each count: a day whose records are gone stays as it was counted
- * while they were there.
+ * Every machine you use sends its own file under its own id, and your page adds
+ * them up: the same account on a laptop and a desktop is one page.
  */
 
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { claudeCode } from './claude-code.ts';
-import { codex } from './codex.ts';
-import { opencode } from './opencode.ts';
-import { KEYS, empty, zone, type Counted, type Day, type Spent, type Tokens } from './count.ts';
+import { config, count, DIR, save } from './machine.ts';
+import { schedule, unschedule } from './schedule.ts';
 
-const TOOLS: Record<string, () => Promise<Counted>> = { 'claude-code': claudeCode, codex, opencode };
+const [cmd, ...args] = process.argv.slice(2);
+const quiet = args.includes('--quiet');
+const say = (s: string) => quiet || console.log(s);
 
-const handle = process.argv[2];
-if (!handle || !/^[a-z\d](?:[a-z\d-]{0,38})$/i.test(handle)) {
-	console.error('usage: node collect/index.ts <github-username>');
+if (cmd === 'count') {
+	const { file, said } = await count();
+	if (args.includes('--print')) process.stdout.write(JSON.stringify(file) + '\n');
+	else say(`${said.join('\n')}\n${file.days.length} days kept for ${file.machine.name} (${DIR})`);
+} else if (cmd === 'setup') {
+	const url = args[0];
+	if (!url || !/^https?:\/\//.test(url)) fail('usage: tokendash setup <the address your page gave you>');
+	await save({ ...(await config()), url });
+	say(`Reports from ${(await config()).name} go to ${url}`);
+} else if (cmd === 'report') {
+	const c = await config();
+	if (!c.url) fail('Nowhere to send it yet: run `tokendash setup <url>` with the address your page gave you.');
+	const { file } = await count();
+	const res = await fetch(c.url!, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(file) }).catch((e) => fail(`Could not reach ${c.url}: ${e.message}`));
+	if (!res.ok) fail(`${c.url} said ${res.status}: ${(await res.text()).slice(0, 300)}`);
+	say(`Sent ${file.days.length} days from ${file.machine.name}`);
+} else if (cmd === 'schedule') {
+	if (!(await config()).url) fail('Nowhere to send it yet: run `tokendash setup <url>` first.');
+	say(`Reporting every hour: ${await schedule(import.meta.filename)}`);
+} else if (cmd === 'unschedule') {
+	say(await unschedule());
+} else {
+	fail('usage: tokendash count [--print] | setup <url> | report | schedule | unschedule');
+}
+
+function fail(s: string): never {
+	console.error(s);
 	process.exit(1);
 }
-const FILE = join(import.meta.dirname, '..', 'static', 'data', `${handle.toLowerCase()}.json`);
-
-// What the last run counted, under what this one did. A file from before there was more than one tool has each
-// day's models at its top, and they were all Claude Code's.
-const kept = new Map<string, Day>();
-try {
-	for (const d of JSON.parse(await readFile(FILE, 'utf8')).days) {
-		kept.set(d.date, d.tools ? d : { date: d.date, tools: { 'claude-code': { sessions: d.sessions, models: d.models } } });
-	}
-} catch {}
-
-const said: string[] = [];
-for (const [tool, count] of Object.entries(TOOLS)) {
-	const days = await count();
-	let responses = 0;
-	for (const [date, d] of days) {
-		const day = kept.get(date) ?? { date, tools: {} };
-		const old: Spent | undefined = day.tools[tool];
-		const models: Record<string, Tokens> = { ...old?.models };
-		for (const [model, t] of d.models) {
-			const was = models[model] ?? empty();
-			models[model] = Object.fromEntries(KEYS.map((k) => [k, Math.max(was[k], t[k])])) as Tokens;
-			responses += t.messages;
-		}
-		const hours = d.hours.map((n, h) => Math.max(old?.hours?.[h] ?? 0, n));
-		day.tools[tool] = { sessions: Math.max(old?.sessions ?? 0, d.sessions.size), hours, models };
-		kept.set(date, day);
-	}
-	said.push(`${tool}: ${days.size} days, ${responses} responses on disk`);
-}
-
-const out = {
-	handle,
-	generated_at: new Date().toISOString(),
-	zone,
-	days: [...kept.values()].sort((a, b) => a.date.localeCompare(b.date))
-};
-
-await mkdir(join(FILE, '..'), { recursive: true });
-await writeFile(FILE, JSON.stringify(out, null, '\t') + '\n');
-console.log(`${said.join('; ')}\n${out.days.length} days kept -> static/data/${handle.toLowerCase()}.json`);
