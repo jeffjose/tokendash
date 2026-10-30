@@ -7,19 +7,24 @@
 	 * surface, the same in every look, so the two read as one thing at two sizes. It comes at once: a chart is
 	 * read by sweeping across it, and a wait at each bar is a wait thirty times.
 	 */
-	let { at, children }: { at: DOMRect | null; children: Snippet } = $props();
+	let { at, below = false, children }: { at: DOMRect | null; below?: boolean; children: Snippet } = $props();
 
 	let card = $state<HTMLElement>();
 	let x = $state(0);
 	let y = $state(0);
 
-	// Above the mark, centered; below when there is no room; kept 8px inside the window either way.
+	// Above the mark, centered, or below it where the mark asks (a square of the year: above it is the tiles, which
+	// the card stood on and hid); the other side when there is no room; kept 8px inside the window either way.
 	$effect(() => {
 		if (!at || !card) return;
 		const w = card.offsetWidth;
 		const h = card.offsetHeight;
+		const over = at.top - h - 8;
+		const under = at.bottom + 8;
+		const fitsOver = over >= 8;
+		const fitsUnder = under + h <= window.innerHeight - 8;
 		x = Math.min(Math.max(8, at.left + at.width / 2 - w / 2), window.innerWidth - w - 8);
-		y = at.top - h - 8 >= 8 ? at.top - h - 8 : Math.min(at.bottom + 8, window.innerHeight - h - 8);
+		y = (below ? fitsUnder || !fitsOver : !fitsOver) ? Math.min(under, window.innerHeight - h - 8) : over;
 	});
 </script>
 

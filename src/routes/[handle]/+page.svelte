@@ -106,7 +106,7 @@
 	const listed = $derived([...days].reverse().slice(0, every ? undefined : 14));
 
 	// The hover card: what is under the pointer, and where.
-	type Point = ({ kind: 'day'; iso: string } | { kind: 'hour'; i: number } | { kind: 'week'; i: number }) & { at: DOMRect };
+	type Point = ({ kind: 'day'; iso: string } | { kind: 'hour'; i: number } | { kind: 'week'; i: number }) & { at: DOMRect; below?: boolean };
 	let point = $state<Point | null>(null);
 
 	// A part of the whole too small to say as a whole number is said to a tenth, and one too small for that as under it.
@@ -169,7 +169,7 @@
 	<section class="flex flex-col gap-3">
 		<h2 class={HEADING}>The year</h2>
 		<div class="{CARD} p-5">
-			<Year {days} {today} onpoint={(iso, at) => (point = iso && at ? { kind: 'day', iso, at } : null)} />
+			<Year {days} {today} onpoint={(iso, at) => (point = iso && at ? { kind: 'day', iso, at, below: true } : null)} />
 		</div>
 	</section>
 
@@ -391,7 +391,7 @@
 	</section>
 </main>
 
-<Hover at={point?.at ?? null}>
+<Hover at={point?.at ?? null} below={point?.below}>
 	{#if point?.kind === 'day'}
 		{@const d = dayBy.get(point.iso)}
 		{#if d}
