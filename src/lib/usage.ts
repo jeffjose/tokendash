@@ -6,13 +6,13 @@
 
 export type Tokens = { input: number; output: number; cache_write: number; cache_read: number; messages: number };
 /** A day as it is kept: for each tool, its sessions and what each model spent. */
-export type Kept = { date: string; tools: Record<string, { sessions: number; models: Record<string, Tokens> }> };
+export type Kept = { date: string; tools: Record<string, { sessions: number; hours?: number[]; models: Record<string, Tokens> }> };
 export type File = { handle: string; generated_at: string; zone: string; days: Kept[] };
 
 /** One model in one tool on one day: the grain everything on the page is added up from. */
 export type Row = Tokens & { date: string; tool: string; model: string; maker: string };
-/** One tool's sessions on one day. A session is counted by its tool, not by its model. */
-export type Sessions = { date: string; tool: string; sessions: number };
+/** One tool's sessions on one day, and its responses in each hour of it. A session is counted by its tool, not by its model. */
+export type Sessions = { date: string; tool: string; sessions: number; hours: number[] };
 export type Usage = { handle: string; generated_at: string; zone: string; rows: Row[]; sessions: Sessions[] };
 /** Anything added up: a day, a tool, a model. */
 export type Sum = Tokens & { sessions: number };
@@ -32,7 +32,7 @@ export function read(file: File): Usage {
 	const sessions: Sessions[] = [];
 	for (const d of file.days) {
 		for (const [tool, t] of Object.entries(d.tools)) {
-			sessions.push({ date: d.date, tool, sessions: t.sessions });
+			sessions.push({ date: d.date, tool, sessions: t.sessions, hours: t.hours ?? [] });
 			for (const [model, n] of Object.entries(t.models)) rows.push({ ...n, date: d.date, tool, model, maker: makerOf(model) });
 		}
 	}

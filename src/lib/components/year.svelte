@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { addDays, dateOf, isoOf, short, total, whole, type Day } from '#lib/usage.js';
+	import { addDays, isoOf, total, type Day } from '#lib/usage.js';
 
 	/**
 	 * A year of days, a square each, a week to a column, as GitHub draws what you have committed. How deep the
 	 * green is says how much was spent that day, in five steps: none, and the four quarters of the days that
 	 * had any. Quarters and not equal slices of the most: one huge day would otherwise leave every other day pale.
 	 */
-	let { days, today }: { days: Day[]; today: Date } = $props();
+	let { days, today, onpoint }: { days: Day[]; today: Date; onpoint: (iso: string | null, at?: DOMRect) => void } = $props();
 
 	const WEEKS = 53;
 	const by = $derived(new Map(days.map((d) => [d.date, d])));
@@ -43,11 +43,14 @@
 	// A month is named over the first column that has its first day.
 	const months = $derived(weeks.map((w, i) => (i > 0 && w.some((c) => c.date.getDate() === 1) ? w.find((c) => c.date.getDate() === 1)!.date.toLocaleString('en-US', { month: 'short' }) : '')));
 
-	const tip = (c: (typeof weeks)[number][number]) => {
-		const when = c.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-		if (!c.day) return `Nothing on ${when}`;
-		return `${short(total(c.day))} tokens on ${when} · ${whole(c.day.messages)} responses`;
-	};
+	// One listener for the year and not one a square: under the pointer, the page is told which day it is on.
+	let lit = $state<string | null>(null);
+	function over(e: PointerEvent) {
+		const el = (e.target as HTMLElement).closest<HTMLElement>('[data-day]');
+		if (el?.dataset.day === lit) return;
+		lit = el?.dataset.day ?? null;
+		onpoint(lit, el?.getBoundingClientRect());
+	}
 
 	// Scrolled to the end where the window is narrow: the weeks that matter most are the latest.
 	let box = $state<HTMLElement>();
@@ -69,14 +72,20 @@
 				<div class="h-[11px]">{d}</div>
 			{/each}
 		</div>
-		<div class="flex gap-[3px]">
+		<div class="flex gap-[3px]" role="grid" tabindex="-1" onpointerover={over} onpointerleave={() => onpoint((lit = null))}>
 			{#each weeks as week}
 				<div class="grid grid-rows-7 gap-[3px]">
 					{#each week as c}
 						{#if c.later}
 							<div class="size-[11px]"></div>
 						{:else}
-							<div class="size-[11px] rounded-[3px]" style="background: {STEPS[c.day ? step(total(c.day)) : 0]}" data-tip={tip(c)} aria-label={tip(c)}></div>
+							<div
+								class="size-[11px] rounded-[3px] {lit === c.iso ? 'ring-1 ring-foreground/60' : ''}"
+								style="background: {STEPS[c.day ? step(total(c.day)) : 0]}"
+								data-day={c.iso}
+								role="gridcell"
+								aria-label={c.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+							></div>
 						{/if}
 					{/each}
 				</div>

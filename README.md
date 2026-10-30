@@ -45,7 +45,9 @@ What it does not see: the tools on other machines, and claude.ai chats.
 | The page for a handle | `src/routes/[handle]/` |
 | The kept file, added up the ways the page reads it | `src/lib/usage.ts` |
 | A year of days, a square each | `src/lib/components/year.svelte` |
-| The last 30 days, a bar each | `src/lib/components/month.svelte` |
+| Bars stacked by tool, maker or model (days, hours, weekdays) | `src/lib/components/bars.svelte`, `src/lib/split.ts` |
+| What a mark is made of, under the pointer | `src/lib/components/hover.svelte`, `breakdown.svelte` |
+| The marks of the tools and makers | `src/lib/marks.ts`, `src/lib/components/mark.svelte` |
 
 It is built on [seed-web](https://github.com/jeffjose/seed-web): its type,
 color and hints, without its app shell (the shell's pieces are still in
@@ -56,4 +58,6 @@ as it does is in [DESIGN.md](DESIGN.md).
 
 Icons are from [Solar](https://www.figma.com/community/file/1166831539721848736)
 by 480 Design, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), redrawn
-here with a heavier line. Colors are from [Radix Colors](https://www.radix-ui.com/colors).
+here with a heavier line. The marks of the tools and makers are from
+[Simple Icons](https://simpleicons.org) (CC0), except Codex's, drawn here.
+Colors are from [Radix Colors](https://www.radix-ui.com/colors).

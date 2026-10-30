@@ -1,31 +1,121 @@
 <script lang="ts">
+	import { replaceState } from '$app/navigation';
+	import { page } from '$app/state';
+	import Bars from '#lib/components/bars.svelte';
+	import Breakdown from '#lib/components/breakdown.svelte';
+	import Hover from '#lib/components/hover.svelte';
+	import Mark from '#lib/components/mark.svelte';
 	import Year from '#lib/components/year.svelte';
-	import Month from '#lib/components/month.svelte';
-	import { CARD, HEADING, ROWS } from '#lib/styles.js';
-	import { addDays, dateOf, daysOf, group, isoOf, modelName, short, streaks, total, whole } from '#lib/usage.js';
+	import { SEG, SEG_ITEM, SEG_OFF, SEG_ON } from '#lib/seg.js';
+	import { nameOf, partOf, seriesOf, SHADES, SPLITS, type Split } from '#lib/split.js';
+	import { BTN, CARD, HEADING, ROWS } from '#lib/styles.js';
+	import { addDays, dateOf, daysOf, group, isoOf, makerOf, modelName, short, streaks, sum, toolName, total, whole, type Day, type Row, type Tokens } from '#lib/usage.js';
 
 	let { data } = $props();
-	const u = $derived({ ...data.usage, days: daysOf(data.usage.rows, data.usage.sessions), models: group(data.usage.rows, 'model') });
+	const u = $derived(data.usage);
 
 	// Today on the clock the days were counted on, so a day is not cut at someone else's midnight.
 	const today = $derived(dateOf(new Intl.DateTimeFormat('en-CA', { timeZone: u.zone }).format(new Date())));
-	const all = $derived(u.days.reduce((n, d) => n + total(d), 0));
+
+	// Which tool the page is about: all of them, or one. In the address, so a page about one can be sent as that.
+	const tools = $derived(group(u.rows, 'tool').map((t) => t.name));
+	// (Kept here and written to the address, not read back from it: a change that does not navigate leaves `page.url` as it was.)
+	let asked = $state(page.url.searchParams.get('tool'));
+	const tool = $derived(asked && tools.includes(asked) ? asked : null);
+	function only(t: string | null) {
+		asked = t;
+		const url = new URL(page.url.href);
+		if (t) url.searchParams.set('tool', t);
+		else url.searchParams.delete('tool');
+		replaceState(url, {});
+	}
+
+	const rows = $derived(tool ? u.rows.filter((r) => r.tool === tool) : u.rows);
+	const sessions = $derived(tool ? u.sessions.filter((s) => s.tool === tool) : u.sessions);
+	const days = $derived(daysOf(rows, sessions));
+	const dayBy = $derived(new Map(days.map((d) => [d.date, d])));
+	const all = $derived(sum(rows));
+
+	// What the bars are split by. With every tool in, the tools; with one, its models.
+	let chosen = $state<Split | null>(null);
+	const split = $derived(chosen ?? (tools.length > 1 && !tool ? 'tool' : 'model'));
+	const series = $derived(seriesOf(rows, split));
+	const partsOf = (rs: Row[]) => {
+		const p = series.map(() => 0);
+		for (const r of rs) p[partOf(series, r, split)] += total(r);
+		return p;
+	};
+
+	// The tiles.
 	const since = $derived(isoOf(addDays(today, -29)));
-	const month = $derived(u.days.filter((d) => d.date >= since).reduce((n, d) => n + total(d), 0));
-	const busiest = $derived(u.days.reduce((a, d) => (total(d) > total(a) ? d : a), u.days[0]));
-	const run = $derived(streaks(u.days, today));
-	const responses = $derived(u.days.reduce((n, d) => n + d.messages, 0));
-	const kinds = $derived([
-		{ name: 'Read from cache', n: u.days.reduce((n, d) => n + d.cache_read, 0) },
-		{ name: 'Written to cache', n: u.days.reduce((n, d) => n + d.cache_write, 0) },
-		{ name: 'Written out', n: u.days.reduce((n, d) => n + d.output, 0) },
-		{ name: 'Read in', n: u.days.reduce((n, d) => n + d.input, 0) }
-	]);
-	const modelsTotal = $derived(u.models.reduce((n, m) => n + total(m), 0));
+	const month = $derived(days.filter((d) => d.date >= since).reduce((n, d) => n + total(d), 0));
+	const busiest = $derived(days.reduce<Day | undefined>((a, d) => (!a || total(d) > total(a) ? d : a), undefined));
+	const run = $derived(streaks(days, today));
+
+	// Day by day, as far back as is asked.
+	let range = $state(30);
+	const trend = $derived(
+		Array.from({ length: range }, (_, i) => {
+			const date = addDays(today, i - range + 1);
+			const d = dayBy.get(isoOf(date));
+			return { iso: isoOf(date), date, parts: d ? partsOf(d.rows) : series.map(() => 0), label: dayName(isoOf(date)) };
+		})
+	);
+
+	// When in the day, by tool: an hour is counted in responses, since that is what the tools say of an hour.
+	const toolSeries = $derived(seriesOf(rows, 'tool'));
+	const hours = $derived(
+		Array.from({ length: 24 }, (_, h) => {
+			const p = toolSeries.map(() => 0);
+			for (const s of sessions) p[toolSeries.findIndex((t) => t.keys.includes(s.tool))] += s.hours[h] ?? 0;
+			return { parts: p, label: hourName(h) };
+		})
+	);
+	const hoursAll = $derived(hours.reduce((n, h) => n + h.parts.reduce((a, b) => a + b, 0), 0));
+	const busiestHour = $derived(hours.reduce((a, h, i) => (h.parts.reduce((x, y) => x + y, 0) > hours[a].parts.reduce((x, y) => x + y, 0) ? i : a), 0));
+
+	// The days of the week, Monday first: what was spent on each, over every one of them.
+	const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+	const week = $derived(
+		WEEKDAYS.map((name, w) => {
+			const on = days.filter((d) => (dateOf(d.date).getDay() + 6) % 7 === w);
+			return { name, days: on, parts: partsOf(on.flatMap((d) => d.rows)), label: `${name}s` };
+		})
+	);
+
+	// The shares.
+	const byTool = $derived(
+		group(rows, 'tool').map((t) => ({ ...t, sessions: sessions.filter((s) => s.tool === t.name).reduce((n, s) => n + s.sessions, 0) }))
+	);
+	const byMaker = $derived(group(rows, 'maker'));
+	const byModel = $derived(group(rows, 'model'));
+	const KINDS = [
+		{ key: 'cache_read', name: 'Read from cache' },
+		{ key: 'cache_write', name: 'Written to cache' },
+		{ key: 'output', name: 'Written out' },
+		{ key: 'input', name: 'Read in' }
+	] as const;
+
+	// The table at the foot: every day, or every model.
+	let table = $state<'day' | 'model'>('day');
+	let open = $state<string | null>(null);
+	let every = $state(false);
+	const listed = $derived([...days].reverse().slice(0, every ? undefined : 14));
+
+	// The hover card: what is under the pointer, and where.
+	type Point = ({ kind: 'day'; iso: string } | { kind: 'hour'; i: number } | { kind: 'week'; i: number }) & { at: DOMRect };
+	let point = $state<Point | null>(null);
 
 	// A part of the whole too small to say as a whole number is said to a tenth, and one too small for that as under it.
-	const percent = (f: number) => (f >= 0.01 ? `${Math.round(f * 100)}%` : f >= 0.001 ? `${(f * 100).toFixed(1)}%` : '<0.1%');
-	const day = (iso: string) => dateOf(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+	const percent = (f: number) => (f >= 0.01 ? `${Math.round(f * 100)}%` : f >= 0.001 ? `${(f * 100).toFixed(1)}%` : f > 0 ? '<0.1%' : '0%');
+	function dayName(iso: string, long = false) {
+		return dateOf(iso).toLocaleDateString('en-US', long ? { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' } : { month: 'short', day: 'numeric' });
+	}
+	const fullDay = (iso: string) => dateOf(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+	function hourName(h: number) {
+		return `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`;
+	}
+	const plural = (n: number, one: string, many = `${one}s`) => `${whole(n)} ${n === 1 ? one : many}`;
 	function ago(iso: string): string {
 		const s = (Date.now() - new Date(iso).getTime()) / 1000;
 		if (s < 60) return 'just now';
@@ -33,78 +123,320 @@
 		if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
 		return `${Math.floor(s / 86400)} d ago`;
 	}
+	const names = (ts: string[]) => (ts.length < 3 ? ts.join(' and ') : `${ts.slice(0, -1).join(', ')} and ${ts.at(-1)}`);
 </script>
 
 <svelte:head>
 	<title>{u.handle} · tokendash</title>
 </svelte:head>
 
+<svelte:window onscroll={() => (point = null)} />
+
 <main class="mx-auto flex max-w-[880px] flex-col gap-6 px-4 py-10 sm:px-6 sm:py-14">
-	<header class="flex items-center gap-4">
-		<img src="https://github.com/{u.handle}.png?size=128" alt="" class="size-16 rounded-full bg-muted ring-1 ring-foreground/10" />
-		<div class="min-w-0">
-			<h1 class="truncate text-[22px] font-medium tracking-tight">{u.handle}</h1>
-			<p class="text-[13px] text-muted-foreground">
-				Claude Code since {day(u.days[0].date)} ·
-				<span data-tip={new Date(u.generated_at).toLocaleString('en-US')}>counted {ago(u.generated_at)}</span>
-			</p>
+	<header class="flex flex-wrap items-center justify-between gap-4">
+		<div class="flex min-w-0 items-center gap-4">
+			<img src="https://github.com/{u.handle}.png?size=128" alt="" class="size-16 rounded-full bg-muted ring-1 ring-foreground/10" />
+			<div class="min-w-0">
+				<h1 class="truncate text-[22px] font-medium tracking-tight">{u.handle}</h1>
+				<p class="text-[13px] text-muted-foreground">
+					{names((tool ? [tool] : tools).map(toolName))} since {days.length ? fullDay(days[0].date) : '—'} ·
+					<span data-tip={new Date(u.generated_at).toLocaleString('en-US')}>counted {ago(u.generated_at)}</span>
+				</p>
+			</div>
 		</div>
+		{#if tools.length > 1}
+			<div class="{SEG} w-fit max-w-full overflow-x-auto [scrollbar-width:none]">
+				<button class="{SEG_ITEM} px-2.5 {tool === null ? SEG_ON : SEG_OFF}" onclick={() => only(null)}>All</button>
+				{#each tools as t}
+					<button class="{SEG_ITEM} flex items-center gap-1.5 px-2.5 {tool === t ? SEG_ON : SEG_OFF}" onclick={() => only(t)}>
+						<Mark of={t} class="size-3" />{toolName(t)}
+					</button>
+				{/each}
+			</div>
+		{/if}
 	</header>
 
 	<section class="grid grid-cols-2 sm:grid-cols-4 {CARD} divide-foreground/10 max-sm:[&>*:nth-child(-n+2)]:border-b max-sm:[&>*]:border-foreground/10 sm:divide-x">
-		{@render tile('Tokens', short(all), `${whole(responses)} responses`, whole(all))}
-		{@render tile('Last 30 days', short(month), `${Math.round((month / Math.max(all, 1)) * 100)}% of it all`, whole(month))}
-		{@render tile('Busiest day', short(total(busiest)), day(busiest.date), whole(total(busiest)))}
+		{@render tile('Tokens', short(total(all)), `${plural(all.messages, 'response')}`, whole(total(all)))}
+		{@render tile('Last 30 days', short(month), `${percent(month / Math.max(total(all), 1))} of it all`, whole(month))}
+		{@render tile('Busiest day', busiest ? short(total(busiest)) : '0', busiest ? fullDay(busiest.date) : 'None yet', busiest ? whole(total(busiest)) : undefined)}
 		{@render tile('Days in a row', String(run.now), `${run.longest} at the most`)}
 	</section>
 
 	<section class="flex flex-col gap-3">
 		<h2 class={HEADING}>The year</h2>
-		<div class="{CARD} p-5"><Year days={u.days} {today} /></div>
+		<div class="{CARD} p-5">
+			<Year {days} {today} onpoint={(iso, at) => (point = iso && at ? { kind: 'day', iso, at } : null)} />
+		</div>
 	</section>
 
 	<section class="flex flex-col gap-3">
-		<h2 class={HEADING}>The last 30 days</h2>
-		<div class="{CARD} p-5"><Month days={u.days} {today} /></div>
+		<div class="flex flex-wrap items-center justify-between gap-2">
+			<h2 class={HEADING}>Day by day</h2>
+			<div class="flex flex-wrap gap-2">
+				<div class={SEG}>
+					{#each SPLITS as s}
+						<button class="{SEG_ITEM} px-2.5 {split === s.id ? SEG_ON : SEG_OFF}" onclick={() => (chosen = s.id)}>{s.name}</button>
+					{/each}
+				</div>
+				<div class={SEG}>
+					{#each [30, 90] as n}
+						<button class="{SEG_ITEM} px-2.5 {range === n ? SEG_ON : SEG_OFF}" onclick={() => (range = n)}>{n} days</button>
+					{/each}
+				</div>
+			</div>
+		</div>
+		<div class="{CARD} p-5">
+			{#if !trend.some((t) => t.parts.some((p) => p > 0))}
+				<p class="text-[13px] text-muted-foreground">Nothing in the last {range} days.</p>
+			{:else}
+			<Bars
+				bars={trend}
+				colors={series.map((s) => s.color)}
+				gap={range > 30 ? 'gap-px' : 'gap-[2px]'}
+				ticks={[
+					{ at: 0, label: dayName(trend[0].iso) },
+					{ at: Math.floor(range / 2), label: dayName(trend[Math.floor(range / 2)].iso) },
+					{ at: range - 1, label: 'Today' }
+				]}
+				onpoint={(i, at) => (point = i !== null && at ? { kind: 'day', iso: trend[i].iso, at } : null)}
+			/>
+			{@render legend(series.map((s) => ({ name: s.name, color: s.color, key: s.keys.length === 1 ? s.keys[0] : '' })))}
+			{/if}
+		</div>
 	</section>
 
+	<div class="grid gap-6 sm:grid-cols-[3fr_2fr]">
+		<section class="flex flex-col gap-3">
+			<h2 class={HEADING}>When in the day</h2>
+			<div class="{CARD} p-5">
+				{#if hoursAll}
+					<Bars
+						bars={hours}
+						colors={toolSeries.map((s) => s.color)}
+						height="h-24"
+						ticks={[0, 6, 12, 18].map((h) => ({ at: h, label: hourName(h) })).concat([{ at: 23, label: '' }])}
+						onpoint={(i, at) => (point = i !== null && at ? { kind: 'hour', i, at } : null)}
+					/>
+					<p class="mt-3 text-[12px] text-muted-foreground">Busiest from {hourName(busiestHour)} to {hourName((busiestHour + 1) % 24)}</p>
+				{:else}
+					<p class="text-[13px] text-muted-foreground">Not counted for these days.</p>
+				{/if}
+			</div>
+		</section>
+		<section class="flex flex-col gap-3">
+			<h2 class={HEADING}>Days of the week</h2>
+			<div class="{CARD} p-5">
+				<Bars
+					bars={week}
+					colors={series.map((s) => s.color)}
+					height="h-24"
+					gap="gap-1.5"
+					ticks={[{ at: 0, label: 'Mon' }, { at: 3, label: 'Thu' }, { at: 6, label: 'Sun' }]}
+					onpoint={(i, at) => (point = i !== null && at ? { kind: 'week', i, at } : null)}
+				/>
+				<p class="mt-3 text-[12px] text-muted-foreground">Added up over every week</p>
+			</div>
+		</section>
+	</div>
+
 	<div class="grid gap-6 sm:grid-cols-2">
+		{#if byTool.length > 1}
+			<section class="flex flex-col gap-3">
+				<h2 class={HEADING}>By tool</h2>
+				<div class={ROWS}>
+					{#each byTool as t}
+						{@render share(toolName(t.name), total(t), total(all), `${plural(t.sessions, 'session')} · ${plural(t.messages, 'response')}`, t.name)}
+					{/each}
+				</div>
+			</section>
+		{/if}
+		{#if byMaker.length > 1}
+			<section class="flex flex-col gap-3">
+				<h2 class={HEADING}>By maker</h2>
+				<div class={ROWS}>
+					{#each byMaker as m}
+						{@render share(m.name, total(m), total(all), plural(m.messages, 'response'), m.name)}
+					{/each}
+				</div>
+			</section>
+		{/if}
 		<section class="flex flex-col gap-3">
 			<h2 class={HEADING}>By model</h2>
 			<div class={ROWS}>
-				{#each u.models as m}
-					{@render share(modelName(m.name), total(m), modelsTotal, `${m.name} · ${whole(m.messages)} responses`)}
+				{#each byModel as m}
+					{@render share(modelName(m.name), total(m), total(all), `${m.name} · ${plural(m.messages, 'response')}`, makerOf(m.name))}
 				{/each}
 			</div>
 		</section>
 		<section class="flex flex-col gap-3">
 			<h2 class={HEADING}>What the tokens were</h2>
-			<div class={ROWS}>
-				{#each kinds as k}
-					{@render share(k.name, k.n, all, `${whole(k.n)} tokens`)}
-				{/each}
+			<div class="{CARD} flex flex-col gap-4 p-5">
+				<div class="flex h-2 gap-px overflow-hidden rounded-full">
+					{#each KINDS as k, i}
+						<div style="flex: {all[k.key]} 0 0; min-width: {all[k.key] ? '2px' : '0'}; background: {SHADES[i]}"></div>
+					{/each}
+				</div>
+				<div class="flex flex-col gap-2 text-[13px]">
+					{#each KINDS as k, i}
+						<div class="flex items-center gap-2" data-tip="{whole(all[k.key])} tokens">
+							<span class="size-2 shrink-0 rounded-[2px]" style="background: {SHADES[i]}"></span>
+							<span class="flex-1">{k.name}</span>
+							<span class="text-muted-foreground">{short(all[k.key])} · {percent(all[k.key] / Math.max(total(all), 1))}</span>
+						</div>
+					{/each}
+				</div>
 			</div>
 		</section>
 	</div>
+
+	<section class="flex flex-col gap-3">
+		<div class="flex items-center justify-between gap-2">
+			<h2 class={HEADING}>{table === 'day' ? 'Every day' : 'Every model'}</h2>
+			<div class={SEG}>
+				<button class="{SEG_ITEM} px-2.5 {table === 'day' ? SEG_ON : SEG_OFF}" onclick={() => (table = 'day')}>Day</button>
+				<button class="{SEG_ITEM} px-2.5 {table === 'model' ? SEG_ON : SEG_OFF}" onclick={() => (table = 'model')}>Model</button>
+			</div>
+		</div>
+		<div class="{CARD} overflow-x-auto">
+			<table class="w-full min-w-[640px] text-[13px]">
+				<thead>
+					<tr class="border-b border-border/50 text-left text-[12px] text-muted-foreground [&>th]:px-3 [&>th]:py-2.5 [&>th]:font-normal [&>th:first-child]:pl-5 [&>th:last-child]:pr-5">
+						<th>{table === 'day' ? 'Day' : 'Model'}</th>
+						{#if table === 'model'}<th>Tools</th>{/if}
+						<th class="text-right">Tokens</th>
+						{#if table === 'model'}<th class="text-right">Share</th>{/if}
+						<th class="text-right">From cache</th>
+						<th class="text-right">To cache</th>
+						<th class="text-right">Out</th>
+						<th class="text-right">In</th>
+						<th class="text-right">Responses</th>
+						{#if table === 'day'}<th class="text-right">Sessions</th>{/if}
+					</tr>
+				</thead>
+				<tbody class="divide-y divide-border/50">
+					{#if table === 'day'}
+						{#each listed as d (d.date)}
+							<tr
+								class="cursor-pointer transition-colors hover:bg-foreground/[0.03] [&>td]:px-3 [&>td]:py-2.5 [&>td:first-child]:pl-5 [&>td:last-child]:pr-5"
+								onclick={() => (open = open === d.date ? null : d.date)}
+								aria-expanded={open === d.date}
+							>
+								<td class="whitespace-nowrap">
+									<span class="mr-1.5 inline-block text-muted-foreground transition-transform {open === d.date ? 'rotate-90' : ''}">›</span>{dayName(d.date, true)}
+								</td>
+								{@render cells(d, false)}
+								<td class="text-right text-muted-foreground">{whole(d.sessions)}</td>
+							</tr>
+							{#if open === d.date}
+								{#each group(d.rows, 'model').flatMap((m) => group(d.rows.filter((r) => r.model === m.name), 'tool').map((t) => ({ ...t, model: m.name }))) as m}
+									<tr class="bg-foreground/[0.02] text-muted-foreground [&>td]:px-3 [&>td]:py-2 [&>td:first-child]:pl-5 [&>td:last-child]:pr-5">
+										<td class="whitespace-nowrap pl-9!">
+											<span class="flex items-center gap-1.5"><Mark of={m.name} class="size-3" />{modelName(m.model)}</span>
+										</td>
+										{@render cells(m, true)}
+										<td></td>
+									</tr>
+								{/each}
+							{/if}
+						{/each}
+					{:else}
+						{#each byModel as m}
+							<tr class="[&>td]:px-3 [&>td]:py-2.5 [&>td:first-child]:pl-5 [&>td:last-child]:pr-5">
+								<td class="whitespace-nowrap" data-tip={m.name}>
+									<span class="flex items-center gap-2"><span class="text-muted-foreground"><Mark of={makerOf(m.name)} class="size-3.5" /></span>{modelName(m.name)}</span>
+								</td>
+								<td class="whitespace-nowrap text-muted-foreground">{names(group(rows.filter((r) => r.model === m.name), 'tool').map((t) => toolName(t.name)))}</td>
+								<td class="text-right" data-tip={whole(total(m))}>{short(total(m))}</td>
+								<td class="text-right text-muted-foreground">{percent(total(m) / Math.max(total(all), 1))}</td>
+								{@render cells(m, true, true)}
+							</tr>
+						{/each}
+					{/if}
+				</tbody>
+			</table>
+			{#if table === 'day' && days.length > 14}
+				<div class="border-t border-border/50 px-3 py-2">
+					<button class={BTN} onclick={() => (every = !every)}>{every ? 'Show the last 14' : `Show all ${days.length} days`}</button>
+				</div>
+			{/if}
+		</div>
+	</section>
 </main>
+
+<Hover at={point?.at ?? null}>
+	{#if point?.kind === 'day'}
+		{@const d = dayBy.get(point.iso)}
+		{#if d}
+			<Breakdown
+				title={dayName(point.iso, true)}
+				value={short(total(d))}
+				parts={group(d.rows, split).map((p) => ({ name: nameOf(split, p.name), n: total(p), color: series[partOf(series, d.rows.find((r) => r[split] === p.name)!, split)].color }))}
+				kinds={d}
+				foot={[`${plural(d.messages, 'response')} · ${plural(d.sessions, 'session')}`]}
+			/>
+		{:else}
+			<Breakdown title={dayName(point.iso, true)} value="Nothing" />
+		{/if}
+	{:else if point?.kind === 'hour'}
+		{@const h = hours[point.i]}
+		{@const n = h.parts.reduce((a, b) => a + b, 0)}
+		<Breakdown
+			title="{hourName(point.i)} to {hourName((point.i + 1) % 24)}"
+			value={plural(n, 'response')}
+			parts={toolSeries.map((s, j) => ({ name: s.name, n: h.parts[j], color: s.color })).filter((p) => p.n > 0)}
+			foot={[`${percent(n / Math.max(hoursAll, 1))} of every response`]}
+		/>
+	{:else if point?.kind === 'week'}
+		{@const w = week[point.i]}
+		{@const n = w.parts.reduce((a, b) => a + b, 0)}
+		<Breakdown
+			title={w.label}
+			value={short(n)}
+			parts={series.map((s, j) => ({ name: s.name, n: w.parts[j], color: s.color })).filter((p) => p.n > 0)}
+			foot={[`${plural(w.days.length, 'day')} with any · ${short(n / Math.max(w.days.length, 1))} on each`]}
+		/>
+	{/if}
+</Hover>
 
 {#snippet tile(name: string, value: string, note: string, exact?: string)}
 	<div class="flex flex-col gap-1 p-5">
 		<div class="text-[12px] text-muted-foreground">{name}</div>
-		<div class="text-[28px] font-medium tracking-tight tabular-nums" data-tip={exact}>{value}</div>
+		<div class="text-[28px] font-medium tracking-tight" data-tip={exact}>{value}</div>
 		<div class="truncate text-[12px] text-muted-foreground">{note}</div>
 	</div>
 {/snippet}
 
-<!-- A row: what it is, how much, and a bar under it for its part of the whole. -->
-{#snippet share(name: string, n: number, of: number, tip: string)}
+<!-- Under a chart, what each of its steps is. -->
+{#snippet legend(items: { name: string; color: string; key: string }[])}
+	{#if items.length > 1}
+		<div class="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-[12px] text-muted-foreground">
+			{#each items as it}
+				<span class="flex items-center gap-1.5"><span class="size-2 rounded-[2px]" style="background: {it.color}"></span>{it.name}</span>
+			{/each}
+		</div>
+	{/if}
+{/snippet}
+
+<!-- A row: its mark, what it is, how much, and a bar under it for its part of the whole. -->
+{#snippet share(name: string, n: number, of: number, tip: string, mark: string)}
 	<div class="flex flex-col gap-2 px-4 py-3" data-tip={tip}>
 		<div class="flex items-baseline justify-between gap-3 text-[14px]">
-			<span class="truncate">{name}</span>
-			<span class="shrink-0 text-[13px] text-muted-foreground tabular-nums">{short(n)} · {percent(n / Math.max(of, 1))}</span>
+			<span class="flex min-w-0 items-center gap-2 self-center"><span class="text-muted-foreground"><Mark of={mark} /></span><span class="truncate">{name}</span></span>
+			<span class="shrink-0 text-[13px] text-muted-foreground">{short(n)} · {percent(n / Math.max(of, 1))}</span>
 		</div>
 		<div class="h-1 overflow-hidden rounded-full bg-foreground/[0.07]">
 			<div class="h-full rounded-full bg-[var(--brand)]" style="width: {Math.max(0.5, (n / Math.max(of, 1)) * 100)}%"></div>
 		</div>
 	</div>
+{/snippet}
+
+<!-- A table row's counts, each short with the whole of it under the pointer. A day's own total comes first; a model's is said before its share. -->
+{#snippet cells(t: Tokens, quiet: boolean, skipTotal = false)}
+	{#if !skipTotal}<td class="text-right {quiet ? '' : 'font-medium'}" data-tip={whole(total(t))}>{short(total(t))}</td>{/if}
+	<td class="text-right text-muted-foreground" data-tip={whole(t.cache_read)}>{short(t.cache_read)}</td>
+	<td class="text-right text-muted-foreground" data-tip={whole(t.cache_write)}>{short(t.cache_write)}</td>
+	<td class="text-right text-muted-foreground" data-tip={whole(t.output)}>{short(t.output)}</td>
+	<td class="text-right text-muted-foreground" data-tip={whole(t.input)}>{short(t.input)}</td>
+	<td class="text-right text-muted-foreground">{whole(t.messages)}</td>
 {/snippet}
