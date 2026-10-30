@@ -1,0 +1,657 @@
+@import 'tailwindcss';
+/* `dark:` follows the page (the `dark` class), not the system: a light look on a dark machine is light all through. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+	/* Whatever is set in a fixed width (a command, an address, a key): one face for all of it. */
+	--font-mono: 'Fira Code Variable', ui-monospace, 'SF Mono', Menlo, monospace;
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-destructive: var(--destructive);
+	--color-destructive-foreground: var(--destructive-foreground);
+	--color-border: var(--border);
+	--color-input: var(--input);
+	--color-ring: var(--ring);
+	--color-sidebar: var(--sidebar);
+	--color-sidebar-foreground: var(--sidebar-foreground);
+	--color-sidebar-primary: var(--sidebar-primary);
+	--color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+	--color-sidebar-accent: var(--sidebar-accent);
+	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+	--color-sidebar-border: var(--sidebar-border);
+	--color-sidebar-ring: var(--sidebar-ring);
+	--radius-sm: calc(var(--radius) - 4px);
+	--radius-md: calc(var(--radius) - 2px);
+	--radius-lg: var(--radius);
+	--radius-xl: calc(var(--radius) + 4px);
+}
+
+/* Slate, the Radix ramp, light. Kept as --g1..--g12 so a second theme is a
+ * second block and nothing downstream changes. */
+:root {
+	/* The light ramp is the app's own, not Radix's slate. Slate on a light
+	   page is a cold lilac gray, with a hair between the page and what lies
+	   on it, so that nothing stood off anything else. This one leans a little
+	   to green, as paper does, and has room in it: 1 is paper
+	   white, for what is lifted (a card, a menu, the text box); 2 is the page;
+	   3 is the sidebar and anything set back; and text (11, 12) is a step
+	   deeper than slate's, to read on all three. */
+	--g1: oklch(1 0 0);
+	--g2: oklch(0.986 0.003 140);
+	--g3: oklch(0.962 0.006 140);
+	--g4: oklch(0.932 0.007 140);
+	--g5: oklch(0.908 0.008 140);
+	--g6: oklch(0.878 0.009 140);
+	--g7: oklch(0.836 0.011 140);
+	--g8: oklch(0.77 0.013 140);
+	--g9: oklch(0.62 0.014 140);
+	--g10: oklch(0.57 0.014 140);
+	--g11: oklch(0.455 0.014 140);
+	--g12: oklch(0.215 0.012 140);
+	--radius: 0.5rem;
+}
+
+.dark {
+	--g1: oklch(0.179 0.0041 286);
+	--g2: oklch(0.213 0.0044 286);
+	--g3: oklch(0.255 0.0065 286.1);
+	--g4: oklch(0.284 0.0084 286.1);
+	--g5: oklch(0.314 0.0092 286.2);
+	--g6: oklch(0.351 0.0102 286.2);
+	--g7: oklch(0.408 0.0125 286.3);
+	--g8: oklch(0.498 0.0161 281.7);
+	--g9: oklch(0.537 0.0153 262.3);
+	--g10: oklch(0.585 0.0143 267.5);
+	--g11: oklch(0.769 0.0113 267.9);
+	--g12: oklch(0.949 0.0022 286.4);
+}
+
+/* Layer 2 — semantic mapping, written once. Radix step roles are symmetric
+ * across modes, so 11 is muted text and 12 is primary text in both. */
+:root {
+	/* The one color that is the app's own, a sage: its mark, the ring round what is picked, a sign that something changed. */
+	--brand: #b3c7a1;
+	/* What is written on the app's own color where it is a fill: white on a light page; on a dark one the page's own color, which reads on every look's. */
+	--on-brand: #ffffff;
+	/* Words in the app's own color. `--brand` is a fill, and a fill is not safe as text: the sage that reads on a dark
+	   page is a pale wash on a light one. So text in it is a step toward the page's own text, which lifts it on a dark
+	   page and sets it deeper on a light one, on every look, with the one line. These three are all the steps there
+	   are: nothing in the seed fills a button with brand, so there is no step for a fill under the pointer. */
+	--brand-ink: color-mix(in oklab, var(--brand) 60%, var(--g12));
+	--foreground: var(--g12);
+	--card-foreground: var(--g12);
+	--popover-foreground: var(--g12);
+	--secondary: var(--g3);
+	--secondary-foreground: var(--g12);
+	--muted: var(--g3);
+	--muted-foreground: var(--g11);
+	--accent: var(--g4);
+	--accent-foreground: var(--g12);
+	--border: var(--g6);
+	--input: var(--g7);
+	--ring: var(--g8);
+	--primary: var(--g12);
+	--primary-foreground: var(--g1);
+	--destructive: oklch(0.626 0.193 23);
+	--destructive-foreground: var(--g1);
+	--sidebar-foreground: var(--g12);
+	--sidebar-primary: var(--g12);
+	--sidebar-primary-foreground: var(--g1);
+	--sidebar-accent: var(--g4);
+	--sidebar-accent-foreground: var(--g12);
+	--sidebar-border: var(--g6);
+	--sidebar-ring: var(--g8);
+}
+
+/* Elevation is the one thing that differs by mode: light lifts cards toward
+ * white off a tinted page, dark lifts them away from black. */
+:root:not(.dark) {
+	--background: var(--g2);
+	--card: var(--g1);
+	--popover: var(--g1);
+	--sidebar: var(--g3);
+	/* The sage, deep enough to be seen on a light page: the one on a dark page is nearly the page's own color here. */
+	--brand: oklch(0.56 0.075 135);
+}
+
+.dark {
+	--background: var(--g1);
+	--card: var(--g2);
+	--popover: var(--g3);
+	--sidebar: var(--g2);
+	--on-brand: var(--background);
+}
+
+/* ── Looks ────────────────────────────────────────────────────────────────
+ * Other pages to wear (the list is in `ui.svelte.ts`, and one is chosen in
+ * Settings, under the switch for light and dark).
+ *
+ * A look is two colors, twice: its page (`--tb`) and its text (`--tf`), for a
+ * dark page and for a light one. Light or dark is the `dark` class and is not
+ * the look's to say, so the switch means the same thing whichever look is on,
+ * and a page that follows the system follows it in any of them. A look used
+ * to be one of the two (Paper was light, Nord was dark): choosing a look then
+ * chose light or dark with it, and System meant nothing once one was on.
+ *
+ * The twelve grays are mixed from the two colors, so nothing in a look can be
+ * a gray that does not belong to its page; and everything downstream of the
+ * grays (borders, cards, the sidebar) follows with no word said here.
+ *
+ * A page may also say the app's own color on it (`--brand`), and how strong
+ * its muted text is (`--tm`) where its text is pale to begin with. A light
+ * page may say what is lifted off it (`--tl`): white, if it does not.
+ *
+ * Each page is its own line and says all of its own. Written as one line for
+ * the look and a second that changes it for light, whatever the first says
+ * and the second does not (a `--tm`, a `--brand`) is worn on the light page
+ * too.
+ *
+ * A few, to show the ways one can be made. A new look is two lines here and
+ * one in `LOOKS`. */
+/* The least a look can be: two colors, twice. Its light page says what is lifted, since white on cream is a hole. */
+:root.dark[data-look='paper'] { --tb: #191713; --tf: #e6dfd0; }
+:root:not(.dark)[data-look='paper'] { --tb: #f5efe3; --tf: #2a251d; --tl: #fbf7ee; }
+/* Text that is a color: the grays mixed from it are that color too. */
+:root.dark[data-look='terminal'] { --tb: #060a06; --tf: #b6efb6; }
+:root:not(.dark)[data-look='terminal'] { --tb: #eef5ea; --tf: #17381a; --tl: #f8fcf5; }
+/* Its own color on each page: the frost that reads on its dark page is deeper on its light one. */
+:root.dark[data-look='nord'] { --tb: #2e3440; --tf: #eceff4; --brand: #88c0d0; }
+:root:not(.dark)[data-look='nord'] { --tb: #eceff4; --tf: #2e3440; --tl: #f8f9fb; --brand: #4f6f98; --tm: 70%; }
+/* Text that is pale to begin with, on both pages: its muted text is mixed stronger, or it is not read. */
+:root.dark[data-look='solarized'] { --tb: #002b36; --tf: #a5b3b3; --brand: #2f9be0; --tm: 87%; }
+:root:not(.dark)[data-look='solarized'] { --tb: #fdf6e3; --tf: #475b62; --tl: #fffbf0; --brand: #1f6fa8; --tm: 86%; }
+
+:root.dark[data-look] {
+	--g1: var(--tb);
+	--g2: color-mix(in oklab, var(--tf) 4%, var(--tb));
+	--g3: color-mix(in oklab, var(--tf) 8%, var(--tb));
+	--g4: color-mix(in oklab, var(--tf) 11%, var(--tb));
+	--g5: color-mix(in oklab, var(--tf) 14%, var(--tb));
+	--g6: color-mix(in oklab, var(--tf) 18%, var(--tb));
+	--g7: color-mix(in oklab, var(--tf) 25%, var(--tb));
+	--g8: color-mix(in oklab, var(--tf) 36%, var(--tb));
+	--g9: color-mix(in oklab, var(--tf) 44%, var(--tb));
+	--g10: color-mix(in oklab, var(--tf) 50%, var(--tb));
+	--g11: color-mix(in oklab, var(--tf) var(--tm, 68%), var(--tb));
+	--g12: var(--tf);
+}
+/* On a light page 1 is what is lifted and 2 is the page (see the top of this file), so the page's color is 2. */
+:root:not(.dark)[data-look] {
+	--g1: var(--tl, #ffffff);
+	--g2: var(--tb);
+	--g3: color-mix(in oklab, var(--tf) 5%, var(--tb));
+	--g4: color-mix(in oklab, var(--tf) 8%, var(--tb));
+	--g5: color-mix(in oklab, var(--tf) 11%, var(--tb));
+	--g6: color-mix(in oklab, var(--tf) 15%, var(--tb));
+	--g7: color-mix(in oklab, var(--tf) 21%, var(--tb));
+	--g8: color-mix(in oklab, var(--tf) 32%, var(--tb));
+	--g9: color-mix(in oklab, var(--tf) 48%, var(--tb));
+	--g10: color-mix(in oklab, var(--tf) 54%, var(--tb));
+	--g11: color-mix(in oklab, var(--tf) var(--tm, 66%), var(--tb));
+	--g12: var(--tf);
+}
+
+/* ── Status ───────────────────────────────────────────────────────────────
+ * Four states, four hues, and **these hues are reserved**: nothing that is not
+ * a status may use them.
+ *
+ * That rule is the whole point. Project colors used to be picked anywhere on
+ * the wheel, so one project sat at hue 35 — a hand's breadth from the failure
+ * red — and another at 145, next to the success green. On a screen showing a
+ * failed run, a missing model and two project dots, four warm marks meant four
+ * different things and none of them read. Identity colors now come from the
+ * gaps between these (see `PROJECT_HUES`).
+ *
+ * 9 is a fill, 11 is the only one safe as text — Radix's split, and the reason
+ * `text-destructive` was unreadable before we stopped using it.
+ * ─────────────────────────────────────────────────────────────────────── */
+:root {
+	/* done */
+	--ok-9: oklch(0.648 0.152 155);
+	--ok-11: oklch(0.792 0.162 155);
+	/* running, and anything else in progress */
+	--run-9: oklch(0.66 0.14 235);
+	--run-11: oklch(0.79 0.12 235);
+	/* needs attention, but nothing is broken yet */
+	--warn-9: oklch(0.72 0.15 85);
+	--warn-11: oklch(0.83 0.13 85);
+	/* failed */
+	--fail-9: oklch(0.586 0.203 25);
+	--fail-11: oklch(0.75 0.15 25);
+}
+/* On a light page the fills hold and the text steps are deep: an 11 that is
+   safe as text on a dark page is a pale wash on a light one. */
+:root:not(.dark) {
+	--ok-9: oklch(0.6 0.15 155);
+	--ok-11: oklch(0.44 0.12 155);
+	--run-9: oklch(0.6 0.15 240);
+	--run-11: oklch(0.45 0.14 245);
+	--warn-9: oklch(0.74 0.16 80);
+	--warn-11: oklch(0.47 0.11 70);
+	--fail-9: oklch(0.586 0.203 25);
+	--fail-11: oklch(0.5 0.18 25);
+}
+
+@layer base {
+	* {
+		@apply border-border;
+	}
+	/* Tailwind 4 leaves a button with the arrow. Anything that can be pressed
+	 * shows the hand, everywhere, so no page has to remember to ask for it. */
+	button:not(:disabled),
+	[role='button']:not([aria-disabled='true']),
+	[role='menuitem'],
+	[role='menuitemcheckbox'],
+	[role='menuitemradio'],
+	[role='option'],
+	[role='tab'],
+	summary,
+	label:has(input[type='file']) {
+		cursor: pointer;
+	}
+	/* And what can be pressed is not text to be selected: a second click on a
+	 * button, close on the first, would otherwise paint its word in the
+	 * browser's selection color. What is said in the app is still selectable. */
+	button,
+	[role='button'],
+	[role='menuitem'],
+	[role='menuitemcheckbox'],
+	[role='menuitemradio'],
+	[role='option'],
+	[role='tab'],
+	summary {
+		-webkit-user-select: none;
+		user-select: none;
+	}
+	html {
+		/* The app is built around a 16px conversation, so the chrome is sized to
+		 * sit beside it: text-sm = 14px, text-xs = 12px. Tailwind sizes are rem-based, so one lever
+		 * moves type, control heights, icons, padding and the rail together. */
+		font-size: 100%;
+		/* (Or the face chosen in Settings, where one was: `fonts.ts`.) */
+		font-family: var(--app-font, 'Geist Variable'), 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+	}
+	/*
+	 * Google Sans Flex, where it is the face chosen, set as its makers set it: regular for what is read, and what is
+	 * marked out only a little heavier than that, never bold (it is one face that varies, so there are weights
+	 * between the usual ones: 460 where another face has its medium, 540 for its semibold). Its letters a touch
+	 * apart at the sizes text is read at, which is where it is drawn close; and its optical sizes left to the
+	 * browser, which fits the drawing of each letter to the size it is at.
+	 *
+	 * By the weights the styles ask for by name, so that everything set medium or semibold anywhere follows.
+	 */
+	html[data-font='google-sans-flex'] {
+		--font-weight-medium: 460;
+		--font-weight-semibold: 540;
+		--font-weight-bold: 620;
+		letter-spacing: 0.008em;
+		font-optical-sizing: auto;
+	}
+	body {
+		@apply bg-background text-foreground;
+	}
+	/* Nothing in the app is set in a typewriter face: an address, a name to
+	 * type, a number in a control are all in the face of the page, and
+	 * numbers are set as the face sets them. Where a fixed width is really
+	 * wanted it is asked for by name (`font-mono`). */
+	code,
+	kbd,
+	samp,
+	pre {
+		font-family: inherit;
+	}
+	* {
+		scrollbar-width: thin;
+		scrollbar-color: transparent transparent;
+	}
+	*:hover {
+		scrollbar-color: var(--g7) transparent;
+	}
+	*::-webkit-scrollbar {
+		width: 6px;
+		height: 6px;
+	}
+	*::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	*::-webkit-scrollbar-thumb {
+		background: transparent;
+		border-radius: 3px;
+	}
+	*:hover::-webkit-scrollbar-thumb {
+		background: var(--g7);
+	}
+}
+
+/* Toast text is text.
+ * sonner leaves its own content unselectable so that a drag reads as a
+ * swipe-to-dismiss. That is right for "Saved" and wrong for anything carrying a
+ * detail somebody needs. */
+[data-sonner-toast] [data-title],
+[data-sonner-toast] [data-description] {
+	-webkit-user-select: text;
+	user-select: text;
+	cursor: text;
+}
+
+/* A toast that says how something went (done, failed, a warning, a note) is
+ * colored by sonner, which is told the theme is dark and is not ours to tell
+ * otherwise. On a light page that was a near-black slab with pale words. Here
+ * it is a tint of the state's own color with its text step on it, as a dark
+ * page has. */
+:root:not(.dark) [data-sonner-toaster][data-sonner-theme] {
+	--success-bg: color-mix(in oklab, var(--ok-9) 9%, white);
+	--success-border: color-mix(in oklab, var(--ok-9) 32%, white);
+	--success-text: var(--ok-11);
+	--info-bg: color-mix(in oklab, var(--run-9) 9%, white);
+	--info-border: color-mix(in oklab, var(--run-9) 32%, white);
+	--info-text: var(--run-11);
+	--warning-bg: color-mix(in oklab, var(--warn-9) 13%, white);
+	--warning-border: color-mix(in oklab, var(--warn-9) 45%, white);
+	--warning-text: var(--warn-11);
+	--error-bg: color-mix(in oklab, var(--fail-9) 8%, white);
+	--error-border: color-mix(in oklab, var(--fail-9) 30%, white);
+	--error-text: var(--fail-11);
+}
+
+@utility no-scrollbar {
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+	&::-webkit-scrollbar {
+		display: none;
+	}
+}
+
+/* While a menu is up, the page under it is not what the pointer is about: a
+ * menu asked for over a paragraph would otherwise keep the text cursor until
+ * the pointer reached it. The arrow everywhere but the menu, and in the menu
+ * the hand on what can be chosen (above).
+ *
+ * That a menu is up is said on the page (`data-menu`, kept by the layout), and not asked of it here with
+ * `body:has(…)`: asked that way, every change anywhere on the page had every element on it looked at again, and
+ * typing in the palette was slow by the size of the page behind it. */
+html[data-menu] :not([role='menu'], [role='menu'] *, [data-slot='select-content'], [data-slot='select-content'] *) {
+	cursor: default !important;
+}
+
+/*
+ * How things arrive: a hint, a menu, a popover, a dialog. One motion for all
+ * of them, said here and not on each: they come from where they were asked
+ * for (a menu grows out of its button, by a few pixels and a few hundredths),
+ * quickly, and leave quicker. It is meant to be felt and not watched: nothing
+ * travels far, nothing bounces, and nothing waits for it.
+ *
+ * By what the thing is (`data-slot`, which every one of `ui/` has; `.pop` for
+ * the ones that are not from there), so a new menu moves as the others do
+ * without being told to. Only `opacity`, `scale` and `translate` move, which
+ * leaves `transform` to whatever is holding the thing in place.
+ */
+:root {
+	--ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes pop-in {
+	from { opacity: 0; scale: 0.96; translate: var(--pop-x, 0) var(--pop-y, 0); }
+}
+@keyframes pop-out {
+	to { opacity: 0; scale: 0.98; }
+}
+/* (A dialog is held in the middle of the page by `translate`, so that is not this one's to move.) */
+@keyframes modal-in {
+	from { opacity: 0; scale: 0.96; }
+}
+@keyframes veil-in {
+	from { opacity: 0; }
+}
+@keyframes veil-out {
+	to { opacity: 0; }
+}
+/* A hint: there is nothing to grow out of, so it only settles a little. */
+@keyframes tip-in {
+	from { opacity: 0; scale: 0.97; }
+}
+
+:is([data-slot='popover-content'], [data-slot='dropdown-menu-content'], [data-slot='dropdown-menu-sub-content'], [data-slot='select-content'], [data-slot='tooltip-content'], .pop) {
+	transform-origin: var(--bits-floating-transform-origin, center);
+	animation: pop-in 150ms var(--ease-out);
+	/* From the side it hangs on: a menu under its button comes down into place. */
+	&[data-side='bottom'] { --pop-y: -4px; }
+	&[data-side='top'] { --pop-y: 4px; }
+	&[data-side='right'] { --pop-x: -4px; }
+	&[data-side='left'] { --pop-x: 4px; }
+	&[data-state='closed'] { animation: pop-out 90ms ease-in forwards; }
+}
+/* A dialog comes from the middle of the page, a touch slower: it is bigger, and it is what you asked for. */
+:is([data-slot='dialog-content'], [data-slot='alert-dialog-content']) {
+	animation: modal-in 180ms var(--ease-out);
+	&[data-state='closed'] { animation: pop-out 110ms ease-in forwards; }
+}
+:is([data-slot='dialog-overlay'], [data-slot='alert-dialog-overlay']) {
+	animation: veil-in 180ms ease-out;
+	&[data-state='closed'] { animation: veil-out 110ms ease-in forwards; }
+}
+.tip-in {
+	animation: tip-in 120ms var(--ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+	:is([data-slot='popover-content'], [data-slot='dropdown-menu-content'], [data-slot='dropdown-menu-sub-content'], [data-slot='select-content'], [data-slot='tooltip-content'], [data-slot='dialog-content'], [data-slot='alert-dialog-content'], [data-slot='dialog-overlay'], [data-slot='alert-dialog-overlay'], .pop, .tip-in),
+	:is([data-slot='popover-content'], [data-slot='dropdown-menu-content'], [data-slot='dropdown-menu-sub-content'], [data-slot='select-content'], [data-slot='tooltip-content'], [data-slot='dialog-content'], [data-slot='alert-dialog-content'], [data-slot='dialog-overlay'], [data-slot='alert-dialog-overlay'], .pop)[data-state='closed'] {
+		animation: none;
+	}
+}
+
+@custom-variant data-open {
+	&:where([data-state='open']), &:where([data-open]:not([data-open='false'])) { @slot; }
+}
+@custom-variant data-closed {
+	&:where([data-state='closed']), &:where([data-closed]:not([data-closed='false'])) { @slot; }
+}
+@custom-variant data-checked {
+	&:where([data-state='checked']), &:where([data-checked]:not([data-checked='false'])) { @slot; }
+}
+@custom-variant data-unchecked {
+	&:where([data-state='unchecked']), &:where([data-unchecked]:not([data-unchecked='false'])) { @slot; }
+}
+@custom-variant data-selected {
+	&:where([data-selected]) { @slot; }
+}
+@custom-variant data-disabled {
+	&:where([data-disabled='true']), &:where([data-disabled]:not([data-disabled='false'])) { @slot; }
+}
+@custom-variant data-active {
+	&:where([data-state='active']), &:where([data-active]:not([data-active='false'])) { @slot; }
+}
+
+/* "No" to a button press, where the press happened: a short sideways shake on
+ * whatever the problem is. Keyed by the caller (a `{#key}` on the time of the
+ * refusal) so pressing Run again on the same problem shakes it again. Stilled
+ * for anyone who has asked for less motion; the color still says it. */
+@keyframes shake {
+	0%, 100% { transform: translateX(0); }
+	20%, 60% { transform: translateX(-6px); }
+	40%, 80% { transform: translateX(6px); }
+}
+.shake {
+	animation: shake 400ms ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+	.shake { animation: none; }
+}
+
+/*
+ * Every list page reads the same way (queue, workflows, models, cache, the
+ * library's table): one line a row, fixed columns, a small quiet header,
+ * a hairline between rows. Said once, here, so a page cannot drift into its
+ * own padding and its own header — which is how five pages got five looks.
+ * The first cell of a row carries the page's left edge.
+ */
+@utility list-table {
+	@apply w-full table-fixed border-separate border-spacing-0 text-xs;
+}
+@utility list-th {
+	@apply border-b border-border py-1.5 pr-4 text-left text-[11.5px] font-medium text-muted-foreground first:pl-4;
+}
+@utility list-td {
+	@apply border-b border-border/40 py-1.5 pr-4 first:pl-4;
+}
+@utility list-row {
+	@apply cursor-pointer transition-colors hover:bg-accent/40;
+}
+
+/* ── Deleting ─────────────────────────────────────────────────────────────
+ * One look for everything that destroys something, wherever it is: red words
+ * on the ordinary ground at rest, and when reached for a bright red ground
+ * with white words on it. Never red on red.
+ *
+ *   a menu item         `variant="destructive"`
+ *   a button with words `.danger`        red at rest
+ *   a button of an icon `.danger-hover`  as quiet as its neighbors at rest,
+ *                                        so a row of tools is not one red one
+ */
+[data-slot='dropdown-menu-item'][data-variant='destructive'],
+[data-slot='dropdown-menu-item'][data-variant='destructive'] svg,
+.danger {
+	color: var(--fail-11) !important;
+}
+[data-slot='dropdown-menu-item'][data-variant='destructive'][data-highlighted],
+[data-slot='dropdown-menu-item'][data-variant='destructive']:focus,
+.danger:hover,
+.danger:focus-visible,
+.danger-hover:hover,
+.danger-hover:focus-visible {
+	background: var(--fail-9) !important;
+	color: white !important;
+}
+[data-slot='dropdown-menu-item'][data-variant='destructive'][data-highlighted] svg,
+[data-slot='dropdown-menu-item'][data-variant='destructive']:focus svg,
+.danger:hover svg,
+.danger-hover:hover svg {
+	color: white !important;
+	opacity: 1;
+}
+/* The last word on it, in the box that asks whether you mean it: red already, since it is the answer. */
+.danger-solid {
+	background: var(--fail-9) !important;
+	color: white !important;
+}
+.danger-solid:hover {
+	background: oklch(from var(--fail-9) calc(l + 0.05) c h) !important;
+}
+
+/* ── Modals ───────────────────────────────────────────────────────────────
+ * A dialog is the one thing on screen that is above everything else, and it
+ * has to look it: a surface a clear step lighter than the page, a lit top
+ * edge, and a deep shadow under it. A hairline ring on a panel the same
+ * color as the page behind it reads as a rectangle drawn on the page.
+ */
+.dialog-surface {
+	background: oklch(from var(--background) calc(l + 0.055) c h);
+	box-shadow:
+		inset 0 1px 0 0 color-mix(in oklch, var(--foreground) 11%, transparent),
+		0 0 0 1px color-mix(in oklch, var(--foreground) 9%, transparent),
+		0 2px 6px 0 rgb(0 0 0 / 0.3),
+		0 28px 80px -12px rgb(0 0 0 / 0.75);
+}
+/* On a light page the same shadow is a black smear round a white sheet. The
+   sheet is already the lightest thing there; it wants a hairline and a soft,
+   wide shadow, and no lit edge. */
+:root:not(.dark) .dialog-surface {
+	/* A step lighter than a light page is past white, and a look's cream page
+	   pushed there keeps its color and turns lemon. The lifted surface the
+	   theme already names is the one. */
+	background: var(--popover);
+	box-shadow:
+		0 0 0 1px color-mix(in oklab, var(--foreground) 10%, transparent),
+		0 2px 6px 0 rgb(0 0 0 / 0.06),
+		0 28px 80px -12px rgb(0 0 0 / 0.18);
+}
+
+/* Words for something under way: a band of light passes along them, over and
+ * over, so the line reads as working and not as stuck. */
+.shimmer {
+	/* The light is a background showing through the letters, and a background
+	   stops at the line box: with a tight line the tails of y and p fall
+	   outside it and are not drawn. The box is given room for them. */
+	display: inline-block;
+	line-height: 1.5;
+	/* As much above as below, so it still sits level with what is beside it. */
+	padding-block: 0.1em;
+	color: transparent;
+	background: linear-gradient(
+			100deg,
+			var(--muted-foreground) 0%,
+			var(--muted-foreground) 38%,
+			var(--foreground) 50%,
+			var(--muted-foreground) 62%,
+			var(--muted-foreground) 100%
+		)
+		0 0 / 250% 100%;
+	-webkit-background-clip: text;
+	background-clip: text;
+	animation: shimmer 1.8s linear infinite;
+}
+@keyframes shimmer {
+	from {
+		background-position: 100% 0;
+	}
+	to {
+		background-position: -66% 0;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.shimmer {
+		animation: none;
+		color: var(--muted-foreground);
+		background: none;
+	}
+}
+
+/* The browser's own parts (a scrollbar, a date field, what it fills in for you) are light or dark as the page is. */
+:root {
+	color-scheme: light;
+}
+.dark {
+	color-scheme: dark;
+}
+
+/* A thing come to from another page (add the class `found` to it): its ground beats twice in the app's color and is gone, so that the eye finds the one it asked for. */
+@keyframes found {
+	0%,
+	100% {
+		background-color: transparent;
+	}
+	50% {
+		background-color: color-mix(in oklab, var(--brand) 20%, transparent);
+	}
+}
+.found {
+	border-radius: 14px;
+	animation: found 650ms ease-in-out 2;
+}
+@media (prefers-reduced-motion: reduce) {
+	.found {
+		animation: none;
+		box-shadow: 0 0 0 2px color-mix(in oklab, var(--brand) 55%, transparent);
+	}
+}
+
+/* The letters looked for, where they are in what was found: lit by the browser's own highlight
+ * (`CSS.highlights.set('find', new Highlight(...ranges))`) and not by wrapping them in elements, so the
+ * text under them is not touched, nothing is laid out again, and a selection is still a selection. */
+::highlight(find) {
+	background-color: color-mix(in oklab, var(--warn-9) 42%, transparent);
+	color: var(--foreground);
+}

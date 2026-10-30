@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<script>
+			// What the page wears, before the first paint: light or dark, and which look. Left to the app, which reads the
+			// same two a moment later (`Appearance` in `ui.svelte.ts`; keep the two in step), a light page on a dark
+			// machine came up dark and then turned over.
+			try {
+				const root = document.documentElement;
+				let mode = localStorage.getItem("mode");
+				let look = localStorage.getItem("look");
+				// Light or dark and the look were one list once, kept as `theme`, with whether it was a dark one beside it.
+				// What was chosen then is still what is worn: the look, on the page it had. Two have other names now.
+				const old = localStorage.getItem("theme");
+				if (old && !mode && !look) {
+					const now = { paper: ["paper", "light"], novel: ["paper", "dark"], "solarized-light": ["solarized", "light"] }[old];
+					if (old === "system" || old === "light" || old === "dark") mode = old;
+					else if (now) [look, mode] = now;
+					else {
+						look = old;
+						mode = localStorage.getItem("theme:dark") === "0" ? "light" : "dark";
+					}
+					localStorage.setItem("mode", mode);
+					localStorage.setItem("look", look || "own");
+				}
+				if (old) {
+					localStorage.removeItem("theme");
+					localStorage.removeItem("theme:dark");
+				}
+				// As the system has it is the default: with nothing kept, the page is light or dark as the system is.
+				const dark = mode === "dark" || (mode !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+				root.classList.toggle("dark", dark);
+				// The app's own look says nothing; any other says which it is, for the stylesheet.
+				if (look && look !== "own" && /^[a-z-]{1,32}$/.test(look)) root.dataset.look = look;
+				// The face it is set in, where one was chosen (`fonts.ts`): asked for now, so that the page does not come up in one and change to another.
+				// (Which face it is is said on the page, for what is set differently in one: `app.css`.)
+				root.dataset.font = localStorage.getItem("font") || "geist";
+				const family = localStorage.getItem("font:family");
+				const href = localStorage.getItem("font:href");
+				if (family && /^[\w '\-,]+$/.test(family)) {
+					root.style.setProperty("--app-font", family);
+					if (href && href.indexOf("https://fonts.googleapis.com/css2?") === 0) {
+						const link = document.createElement("link");
+						link.id = "app-font";
+						link.rel = "stylesheet";
+						link.href = href;
+						document.head.appendChild(link);
+					}
+				}
+			} catch (e) {}
+		</script>
+		<!-- The page is its own color from the first thing drawn, before any of its styles have come: not white, and then dark. (The two pages of `app.css`.) -->
+		<style>
+			html { background: oklch(0.986 0.003 140); }
+			html.dark { background: oklch(0.179 0.0041 286); }
+		</style>
+		<link rel="icon" type="image/svg+xml" href="%sveltekit.assets%/favicon.svg" />
+		<title>tokendash</title>
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>
