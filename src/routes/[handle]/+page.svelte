@@ -7,7 +7,7 @@
 	import Mark from '#lib/components/mark.svelte';
 	import Year from '#lib/components/year.svelte';
 	import { SEG, SEG_ITEM, SEG_OFF, SEG_ON } from '#lib/seg.js';
-	import { nameOf, partOf, seriesOf, SHADES, SPLITS, type Split } from '#lib/split.js';
+	import { colorOf, fillOf, nameOf, partOf, seriesOf, SHADES, SPLITS, type Split } from '#lib/split.js';
 	import { BTN, CARD, HEADING, ROWS } from '#lib/styles.js';
 	import { addDays, dateOf, daysOf, group, isoOf, makerOf, modelName, short, streaks, sum, toolName, total, whole, type Day, type Row, type Tokens } from '#lib/usage.js';
 
@@ -169,7 +169,7 @@
 	<section class="flex flex-col gap-3">
 		<h2 class={HEADING}>The year</h2>
 		<div class="{CARD} p-5">
-			<Year {days} {today} onpoint={(iso, at) => (point = iso && at ? { kind: 'day', iso, at, below: true } : null)} />
+			<Year {days} {today} hue={(tool && colorOf(tool)) || undefined} onpoint={(iso, at) => (point = iso && at ? { kind: 'day', iso, at, below: true } : null)} />
 		</div>
 	</section>
 
@@ -252,8 +252,8 @@
 			<section class="flex flex-col gap-3">
 				<h2 class={HEADING}>By tool</h2>
 				<div class={ROWS}>
-					{#each byTool as t}
-						{@render share(toolName(t.name), total(t), total(all), `${plural(t.sessions, 'session')} · ${plural(t.messages, 'response')}`, t.name)}
+					{#each byTool as t, i}
+						{@render share(toolName(t.name), total(t), total(all), `${plural(t.sessions, 'session')} · ${plural(t.messages, 'response')}`, t.name, fillOf('tool', t.name, 0))}
 					{/each}
 				</div>
 			</section>
@@ -262,8 +262,8 @@
 			<section class="flex flex-col gap-3">
 				<h2 class={HEADING}>By maker</h2>
 				<div class={ROWS}>
-					{#each byMaker as m}
-						{@render share(m.name, total(m), total(all), plural(m.messages, 'response'), m.name)}
+					{#each byMaker as m, i}
+						{@render share(m.name, total(m), total(all), plural(m.messages, 'response'), m.name, fillOf('maker', m.name, i))}
 					{/each}
 				</div>
 			</section>
@@ -272,8 +272,8 @@
 			<section class="flex flex-col gap-3">
 				<h2 class={HEADING}>By machine</h2>
 				<div class={ROWS}>
-					{#each byMachine as m}
-						{@render share(m.name, total(m), total(all), `${plural(m.sessions, 'session')} · ${plural(m.messages, 'response')}`, 'machine')}
+					{#each byMachine as m, i}
+						{@render share(m.name, total(m), total(all), `${plural(m.sessions, 'session')} · ${plural(m.messages, 'response')}`, 'machine', fillOf('machine', m.name, i))}
 					{/each}
 				</div>
 			</section>
@@ -282,7 +282,7 @@
 			<h2 class={HEADING}>By model</h2>
 			<div class={ROWS}>
 				{#each byModel as m}
-					{@render share(modelName(m.name), total(m), total(all), `${m.name} · ${plural(m.messages, 'response')}`, makerOf(m.name))}
+					{@render share(modelName(m.name), total(m), total(all), `${m.name} · ${plural(m.messages, 'response')}`, makerOf(m.name), fillOf('model', m.name, 0))}
 				{/each}
 			</div>
 		</section>
@@ -446,14 +446,14 @@
 {/snippet}
 
 <!-- A row: its mark, what it is, how much, and a bar under it for its part of the whole. -->
-{#snippet share(name: string, n: number, of: number, tip: string, mark: string)}
+{#snippet share(name: string, n: number, of: number, tip: string, mark: string, color: string)}
 	<div class="flex flex-col gap-2 px-4 py-3" data-tip={tip}>
 		<div class="flex items-baseline justify-between gap-3 text-[14px]">
 			<span class="flex min-w-0 items-center gap-2 self-center"><span class="text-muted-foreground"><Mark of={mark} /></span><span class="truncate">{name}</span></span>
 			<span class="shrink-0 text-[13px] text-muted-foreground">{short(n)} · {percent(n / Math.max(of, 1))}</span>
 		</div>
 		<div class="h-1 overflow-hidden rounded-full bg-foreground/[0.07]">
-			<div class="h-full rounded-full bg-[var(--brand)]" style="width: {Math.max(0.5, (n / Math.max(of, 1)) * 100)}%"></div>
+			<div class="h-full rounded-full" style="background: {color}; width: {Math.max(0.5, (n / Math.max(of, 1)) * 100)}%"></div>
 		</div>
 	</div>
 {/snippet}

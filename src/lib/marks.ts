@@ -18,3 +18,23 @@ export const MARKS: Record<string, string> = {
 	Moonshot: 'm1.053 16.91 9.538 2.55a21 20.981 0 0 0 .06 2.031l5.956 1.592a12 11.99 0 0 1-15.554-6.172m-1.02-5.79 11.352 3.035a21 20.981 0 0 0-.469 2.01l10.817 2.89a12 11.99 0 0 1-1.845 2.004L.658 15.918a12 11.99 0 0 1-.625-4.796m1.593-5.146L13.573 9.17a21 20.981 0 0 0-1.01 1.874l11.297 3.02a21 20.981 0 0 1-.67 2.362l-11.55-3.087L.125 10.26a12 11.99 0 0 1 1.499-4.285ZM6.067 1.58l11.285 3.016a21 20.981 0 0 0-1.688 1.719l7.824 2.091a21 20.981 0 0 1 .513 2.664L2.107 5.218a12 11.99 0 0 1 3.96-3.638M21.68 4.866 7.222 1.003A12 11.99 0 0 1 21.68 4.866',
 	codex: 'M4 2h16a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm.5 2.5v15h15v-15Zm2.4 4.2 1.4-1.4 4.6 4.6-4.6 4.6-1.4-1.4 3.2-3.2Zm6.1 6.8h4.5v2H13Z'
 };
+
+/**
+ * Each one's own color, as its owner uses it (Simple Icons' record of it). Null where its own is black and white:
+ * drawn in the page's text, so it is right on a light page and a dark one. Anthropic is Claude's orange, which is
+ * the color it is known by, and OpenAI (and Codex) the green it has used for years; neither is in Simple Icons.
+ */
+export const COLORS: Record<string, string | null> = {
+	'claude-code': '#D97757',
+	Anthropic: '#D97757',
+	codex: '#10A37F',
+	OpenAI: '#10A37F',
+	opencode: null,
+	Google: '#8E75B2',
+	DeepSeek: '#5786FE',
+	Mistral: '#FA520F',
+	Qwen: '#6950EF',
+	Meta: '#0467DF',
+	Moonshot: null,
+	xAI: null
+};

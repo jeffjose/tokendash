@@ -6,7 +6,12 @@
 	 * green is says how much was spent that day, in five steps: none, and the four quarters of the days that
 	 * had any. Quarters and not equal slices of the most: one huge day would otherwise leave every other day pale.
 	 */
-	let { days, today, onpoint }: { days: Day[]; today: Date; onpoint: (iso: string | null, at?: DOMRect) => void } = $props();
+	let {
+		days,
+		today,
+		hue = 'var(--brand)',
+		onpoint
+	}: { days: Day[]; today: Date; hue?: string; onpoint: (iso: string | null, at?: DOMRect) => void } = $props();
 
 	const WEEKS = 53;
 	const by = $derived(new Map(days.map((d) => [d.date, d])));
@@ -17,16 +22,16 @@
 		if (!sorted.length) return [Infinity, Infinity, Infinity];
 		return [0.25, 0.5, 0.75].map((q) => sorted[Math.floor(q * (sorted.length - 1))]);
 	});
-	// One hue, the app's own, from the page's color to its full depth: mixed from the two, so it is right on a light
+	// One hue (the app's own, or the one tool's the page is about), from the page's color to its full depth: mixed from the two, so it is right on a light
 	// page and a dark one, and on every look, without a second set of steps. (Said here and not as classes: a class
 	// built from a number is one Svelte cannot see, and it threw the rules away as unused.)
-	const STEPS = [
+	const STEPS = $derived([
 		'color-mix(in oklab, var(--foreground) 7%, transparent)',
-		'color-mix(in oklab, var(--brand) 30%, var(--card))',
-		'color-mix(in oklab, var(--brand) 55%, var(--card))',
-		'color-mix(in oklab, var(--brand) 80%, var(--card))',
-		'var(--brand)'
-	];
+		`color-mix(in oklab, ${hue} 30%, var(--card))`,
+		`color-mix(in oklab, ${hue} 55%, var(--card))`,
+		`color-mix(in oklab, ${hue} 80%, var(--card))`,
+		hue
+	]);
 	const step = (n: number) => (n <= 0 ? 0 : 1 + cuts.filter((c) => n > c).length);
 
 	// Columns end with this week; a column runs Sunday to Saturday.
