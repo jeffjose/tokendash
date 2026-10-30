@@ -176,15 +176,19 @@
 	<section class="flex flex-col gap-3">
 		<div class="flex flex-wrap items-center justify-between gap-2">
 			<h2 class={HEADING}>Day by day</h2>
-			<div class="flex flex-wrap gap-2">
+			<!-- One row on a phone too, under the heading and across the page: stacked, the two read as two loose bars. There
+			     the range is said as "30 d", as a time is said ("3 h ago"), so both fit down to 360px (under that, it goes under). -->
+			<div class="flex flex-wrap gap-2 max-sm:w-full max-sm:justify-between">
 				<div class={SEG}>
 					{#each SPLITS.filter((s) => s.id !== 'machine' || u.machines.length > 1) as s}
-						<button class="{SEG_ITEM} px-2.5 {split === s.id ? SEG_ON : SEG_OFF}" onclick={() => (chosen = s.id)}>{s.name}</button>
+						<button class="{SEG_ITEM} px-1.5 sm:px-2.5 {split === s.id ? SEG_ON : SEG_OFF}" onclick={() => (chosen = s.id)}>{s.name}</button>
 					{/each}
 				</div>
 				<div class={SEG}>
 					{#each [30, 90] as n}
-						<button class="{SEG_ITEM} px-2.5 {range === n ? SEG_ON : SEG_OFF}" onclick={() => (range = n)}>{n} days</button>
+						<button class="{SEG_ITEM} px-1.5 sm:px-2.5 {range === n ? SEG_ON : SEG_OFF}" onclick={() => (range = n)} aria-label="{n} days"
+							><span class="sm:hidden">{n} d</span><span class="max-sm:hidden">{n} days</span></button
+						>
 					{/each}
 				</div>
 			</div>
