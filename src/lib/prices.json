@@ -357,6 +357,18 @@
 			"cache_write": null,
 			"cache_read": 1
 		},
+		"gemini-2.0-flash": {
+			"input": 0.15,
+			"output": 0.6,
+			"cache_write": null,
+			"cache_read": null
+		},
+		"gemini-2.0-flash-lite": {
+			"input": 0.075,
+			"output": 0.3,
+			"cache_write": null,
+			"cache_read": null
+		},
 		"gemini-2.5-computer-use-preview-10-2025": {
 			"input": 1.25,
 			"output": 10,
@@ -375,6 +387,18 @@
 			"cache_write": null,
 			"cache_read": 0.01
 		},
+		"gemini-2.5-flash-lite-preview-09-2025": {
+			"input": 0.1,
+			"output": 0.4,
+			"cache_write": null,
+			"cache_read": 0.01
+		},
+		"gemini-2.5-flash-preview-09-2025": {
+			"input": 0.3,
+			"output": 2.5,
+			"cache_write": null,
+			"cache_read": 0.03
+		},
 		"gemini-2.5-pro": {
 			"input": 1.25,
 			"output": 10,
@@ -392,6 +416,12 @@
 			"output": 3,
 			"cache_write": null,
 			"cache_read": 0.05
+		},
+		"gemini-3-pro-preview": {
+			"input": 2,
+			"output": 12,
+			"cache_write": null,
+			"cache_read": 0.2
 		},
 		"gemini-3.1-flash-lite": {
 			"input": 0.25,
@@ -447,11 +477,23 @@
 			"cache_write": null,
 			"cache_read": 0.075
 		},
+		"gemini-3.8-flash-cyber": {
+			"input": 1.5,
+			"output": 7.5,
+			"cache_write": null,
+			"cache_read": 0.15
+		},
 		"gemini-4-argon": {
 			"input": 2,
 			"output": 10,
 			"cache_write": null,
 			"cache_read": 0.1
+		},
+		"gemini-4-argon-cyber-permissive": {
+			"input": 4,
+			"output": 20,
+			"cache_write": null,
+			"cache_read": 0.2
 		},
 		"gemini-exp-1114": {
 			"input": 0,
@@ -495,6 +537,12 @@
 			"cache_write": null,
 			"cache_read": null
 		},
+		"gemini-omni-1.1-flash-preview": {
+			"input": 1.5,
+			"output": 9,
+			"cache_write": null,
+			"cache_read": null
+		},
 		"gemini-omni-flash-preview": {
 			"input": 1.5,
 			"output": 9,
@@ -506,6 +554,12 @@
 			"output": 12,
 			"cache_write": null,
 			"cache_read": 0.2
+		},
+		"gemini-robotics-er-1.5-preview": {
+			"input": 0.3,
+			"output": 2.5,
+			"cache_write": null,
+			"cache_read": 0
 		},
 		"gemini-robotics-er-2-preview": {
 			"input": 1,
@@ -1778,6 +1832,48 @@
 			"output": 0.4,
 			"cache_write": null,
 			"cache_read": 0.01
+		},
+		"xai/grok-4.1-fast-non-reasoning": {
+			"input": 0.2,
+			"output": 0.5,
+			"cache_write": null,
+			"cache_read": 0.05
+		},
+		"xai/grok-4.1-fast-reasoning": {
+			"input": 0.2,
+			"output": 0.5,
+			"cache_write": null,
+			"cache_read": 0.05
+		},
+		"xai/grok-4.20-non-reasoning": {
+			"input": 1.25,
+			"output": 2.5,
+			"cache_write": null,
+			"cache_read": 0.2
+		},
+		"xai/grok-4.20-reasoning": {
+			"input": 1.25,
+			"output": 2.5,
+			"cache_write": null,
+			"cache_read": 0.2
+		},
+		"xai/grok-4.3": {
+			"input": 1.25,
+			"output": 2.5,
+			"cache_write": null,
+			"cache_read": 0.2
+		},
+		"xai/grok-4.6": {
+			"input": 2,
+			"output": 6,
+			"cache_write": null,
+			"cache_read": 0.5
+		},
+		"xai/grok-4.7": {
+			"input": 2,
+			"output": 6,
+			"cache_write": null,
+			"cache_read": 0.5
 		},
 		"zai-glm-5": {
 			"input": 1.4,

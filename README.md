@@ -1,6 +1,6 @@
 # tokendash
 
-What you have spent on Claude Code, Codex and OpenCode, a day at a time, on a
+What you have spent on Claude Code, Codex, OpenCode, Gemini CLI and more, a day at a time, on a
 page that is yours: `/<github-username>`. A GitHub username is the handle
 because it is already one person's, and no one else can have it.
 
@@ -85,6 +85,14 @@ names, paths or words from a session.
 | Claude Code | `~/.claude/projects/**/*.jsonl` | `collect/claude-code.ts` |
 | Codex | `~/.codex/sessions/**/*.jsonl` | `collect/codex.ts` |
 | OpenCode | `~/.local/share/opencode/opencode.db` | `collect/opencode.ts` |
+| Gemini CLI | `~/.gemini/tmp/*/chats/*.json[l]` | `collect/gemini.ts` |
+| Amp | `~/.local/share/amp/threads/**/*.json` | `collect/amp.ts` (from ccusage's reading; not yet tried on real threads) |
+| Droid | `~/.factory/sessions/**/*.settings.json` | `collect/droid.ts` (likewise; a session is counted whole, on one day) |
+
+Cursor keeps no token counts on the machine (they are on its servers), so there is
+nothing to collect it from yet; GitHub Copilot CLI's session snapshots need
+ccusage's resume-by-resume reading, and are next. Both have their names and
+marks on the page already.
 
 A model is kept by its own id, and the page says who made it: OpenCode can run
 Opus as well as its own models.

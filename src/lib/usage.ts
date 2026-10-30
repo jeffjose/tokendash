@@ -135,7 +135,8 @@ export function money(n: number): string {
 }
 
 /** A tool by its own name. One not known here is said as it was kept. */
-export const toolName = (id: string) => ({ 'claude-code': 'Claude Code', codex: 'Codex', opencode: 'OpenCode' })[id] ?? id;
+export const toolName = (id: string) =>
+	(({ 'claude-code': 'Claude Code', codex: 'Codex', opencode: 'OpenCode', 'gemini-cli': 'Gemini CLI', amp: 'Amp', droid: 'Droid', cursor: 'Cursor', copilot: 'Copilot CLI' }) as Record<string, string>)[id] ?? id;
 
 /**
  * Who made a model, read off its id: the same model can come through more than one tool (OpenCode can run

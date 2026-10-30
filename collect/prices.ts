@@ -16,6 +16,8 @@ const REPO = 'BerriAI/litellm';
 const PATH = 'model_prices_and_context_window.json';
 /** The makers' own APIs, by LiteLLM's name for them: a model resold elsewhere is priced as its maker sells it. */
 const SOLD_BY = ['anthropic', 'openai', 'gemini', 'deepseek', 'mistral', 'xai', 'moonshot'];
+/** Google sells its models through Vertex AI too, and some only there (gemini-3-pro-preview): taken where Gemini's own API has no price. */
+const THEN = ['vertex_ai', 'vertex_ai-language-models'];
 
 const commit = await (await fetch(`https://api.github.com/repos/${REPO}/commits?path=${PATH}&per_page=1`)).json();
 const sha: string = commit[0].sha;
@@ -24,8 +26,8 @@ const list: Record<string, any> = await (await fetch(`https://raw.githubusercont
 // Per million tokens, in dollars: what a price is said in, and short enough to read in the file.
 const per = (n: unknown) => (typeof n === 'number' ? Math.round(n * 1e6 * 1e6) / 1e6 : null);
 const models: Record<string, { input: number; output: number; cache_write: number | null; cache_read: number | null }> = {};
-for (const [id, p] of Object.entries(list)) {
-	if (!SOLD_BY.includes(p.litellm_provider) || !['chat', 'responses'].includes(p.mode)) continue;
+for (const [id, p] of [...Object.entries(list).filter(([, p]) => SOLD_BY.includes(p.litellm_provider)), ...Object.entries(list).filter(([, p]) => THEN.includes(p.litellm_provider))]) {
+	if (!['chat', 'responses'].includes(p.mode)) continue;
 	const input = per(p.input_cost_per_token);
 	const output = per(p.output_cost_per_token);
 	if (input === null || output === null) continue;

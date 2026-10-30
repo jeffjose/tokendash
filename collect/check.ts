@@ -17,6 +17,7 @@
  */
 
 import { createPublicKey, verify } from 'node:crypto';
+import { BY_SESSION } from './count.ts';
 import { signed, type MachineFile } from './machine.ts';
 
 /** The most a single response can be: a million-token window read in, and what a model can write in one. */
@@ -43,8 +44,8 @@ export function problems(f: MachineFile, known?: string): string[] {
 				const vals = [n.input, n.output, n.cache_write, n.cache_read, n.messages];
 				if (vals.some((v) => !Number.isSafeInteger(v) || v < 0)) out.push(`${where} ${model}: a count that is not a count`);
 				if (n.messages === 0 && vals.some((v) => v > 0)) out.push(`${where} ${model}: tokens with no responses`);
-				if (n.output > n.messages * MOST_OUT) out.push(`${where} ${model}: more written out than a response can be`);
-				if (n.input + n.cache_write + n.cache_read > n.messages * MOST_IN) out.push(`${where} ${model}: more read in than a response can be`);
+				if (!BY_SESSION.has(tool) && n.output > n.messages * MOST_OUT) out.push(`${where} ${model}: more written out than a response can be`);
+				if (!BY_SESSION.has(tool) && n.input + n.cache_write + n.cache_read > n.messages * MOST_IN) out.push(`${where} ${model}: more read in than a response can be`);
 				messages += n.messages;
 			}
 			if (t.hours) {

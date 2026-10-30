@@ -20,8 +20,11 @@ import { claudeCode } from './claude-code.ts';
 import { codex } from './codex.ts';
 import { KEYS, empty, zone, type Counted, type Day, type Spent, type Tokens } from './count.ts';
 import { opencode } from './opencode.ts';
+import { gemini } from './gemini.ts';
+import { amp } from './amp.ts';
+import { droid } from './droid.ts';
 
-export const TOOLS: Record<string, () => Promise<Counted>> = { 'claude-code': claudeCode, codex, opencode };
+export const TOOLS: Record<string, () => Promise<Counted>> = { 'claude-code': claudeCode, codex, opencode, 'gemini-cli': gemini, amp, droid };
 
 export const DIR =
 	process.env.TOKENDASH_HOME ||

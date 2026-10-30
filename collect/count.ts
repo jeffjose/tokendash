@@ -32,3 +32,9 @@ export function add(days: Counted, when: Date | number | string, session: string
 	t.messages += 1;
 	return t;
 }
+
+/**
+ * Tools whose records say only a session's total, so a "response" in their counts is a whole session: a response's
+ * size is not checked against what one response can be (`check.ts`).
+ */
+export const BY_SESSION = new Set(['droid']);
