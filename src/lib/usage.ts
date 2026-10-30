@@ -5,7 +5,15 @@
  * out of it.
  */
 
+import PRICES from '#lib/prices.json';
+
 export type Tokens = { input: number; output: number; cache_write: number; cache_read: number; messages: number };
+/**
+ * Tokens with what they would have cost at the maker's API prices (`prices.ts`), in dollars; what reading from the
+ * cache saved against reading the same in fresh; and how many tokens were of a model with no price known, which
+ * cost nothing here and are said apart so that nothing is passed off as free.
+ */
+export type Spent = Tokens & { cost: number; saved: number; unpriced: number };
 /** A day as a machine keeps it: for each tool, its sessions, its responses by the hour, and what each model spent. */
 export type Kept = { date: string; tools: Record<string, { sessions: number; hours?: number[]; models: Record<string, Tokens> }> };
 /** What one machine counted, on its own clock. */
@@ -13,20 +21,48 @@ export type Machine = { machine: { id: string; name: string }; zone: string; gen
 export type File = { handle: string; generated_at: string; machines: Machine[] };
 
 /** One model in one tool on one machine on one day: the grain everything on the page is added up from. */
-export type Row = Tokens & { date: string; tool: string; model: string; maker: string; machine: string };
+export type Row = Spent & { date: string; tool: string; model: string; maker: string; machine: string };
 /** One tool's sessions on one machine on one day, and its responses in each hour of it. A session is counted by its tool, not by its model. */
 export type Sessions = { date: string; tool: string; machine: string; sessions: number; hours: number[] };
 export type Usage = { handle: string; generated_at: string; zone: string; machines: string[]; rows: Row[]; sessions: Sessions[] };
 /** Anything added up: a day, a tool, a model. */
-export type Sum = Tokens & { sessions: number };
+export type Sum = Spent & { sessions: number };
 export type Day = Sum & { date: string; rows: Row[] };
 
-const KEYS = ['input', 'output', 'cache_write', 'cache_read', 'messages'] as const;
-const zero = (): Sum => ({ input: 0, output: 0, cache_write: 0, cache_read: 0, messages: 0, sessions: 0 });
-export function sum(rows: Tokens[]): Tokens {
-	const s: Tokens = { input: 0, output: 0, cache_write: 0, cache_read: 0, messages: 0 };
+const KEYS = ['input', 'output', 'cache_write', 'cache_read', 'messages', 'cost', 'saved', 'unpriced'] as const;
+const zero = (): Sum => ({ input: 0, output: 0, cache_write: 0, cache_read: 0, messages: 0, cost: 0, saved: 0, unpriced: 0, sessions: 0 });
+export function sum(rows: Spent[]): Spent {
+	const s: Spent = { input: 0, output: 0, cache_write: 0, cache_read: 0, messages: 0, cost: 0, saved: 0, unpriced: 0 };
 	for (const r of rows) for (const k of KEYS) s[k] += r[k];
 	return s;
+}
+
+type Price = { input: number; output: number; cache_write: number | null; cache_read: number | null };
+const LIST = PRICES.models as Record<string, Price>;
+/** Where the prices are from, and as of when: said on the page beside what they come to. */
+export const PRICED = { source: PRICES.source, as_of: PRICES.as_of };
+
+/**
+ * A model's price, by its id as the tool wrote it: as it is, without a router's prefix, without a dated snapshot's
+ * date. A model given away (":free", "-free") costs nothing and is known to; one with no price is null.
+ */
+export function priceOf(id: string): Price | null {
+	const bare = id.replace(/^.*\//, '');
+	if (/(:|-)free$/.test(bare)) return { input: 0, output: 0, cache_write: 0, cache_read: 0 };
+	const name = bare.replace(/:.*$/, '');
+	return LIST[name] ?? LIST[name.replace(/-\d{8}$/, '')] ?? null;
+}
+
+/**
+ * What tokens cost at a price. A cache write with no price of its own is priced as input, and a cache read too: the
+ * maker charges it as that. Every cache write is priced at the five-minute rate, since the tools do not keep how
+ * many were for the hour, which costs more.
+ */
+function spend(t: Tokens, p: Price | null): Spent {
+	if (!p) return { ...t, cost: 0, saved: 0, unpriced: total(t) };
+	const read = p.cache_read ?? p.input;
+	const cost = (t.input * p.input + t.output * p.output + t.cache_write * (p.cache_write ?? p.input) + t.cache_read * read) / 1e6;
+	return { ...t, cost, saved: (t.cache_read * (p.input - read)) / 1e6, unpriced: 0 };
 }
 
 /**
@@ -43,7 +79,7 @@ export function read(file: File): Usage {
 		for (const d of m.days) {
 			for (const [tool, t] of Object.entries(d.tools)) {
 				sessions.push({ date: d.date, tool, machine, sessions: t.sessions, hours: t.hours ?? [] });
-				for (const [model, n] of Object.entries(t.models)) rows.push({ ...n, date: d.date, tool, model, maker: makerOf(model), machine });
+				for (const [model, n] of Object.entries(t.models)) rows.push({ ...spend(n, priceOf(model)), date: d.date, tool, model, maker: makerOf(model), machine });
 			}
 		}
 	}
@@ -68,7 +104,7 @@ export function daysOf(rows: Row[], sessions: Sessions[]): Day[] {
 }
 
 /** The rows added up by one of what they are (tool, maker, model), the most first. */
-export function group(rows: Row[], by: 'tool' | 'maker' | 'model' | 'machine'): (Tokens & { name: string })[] {
+export function group(rows: Row[], by: 'tool' | 'maker' | 'model' | 'machine'): (Spent & { name: string })[] {
 	const parts = new Map<string, Row[]>();
 	for (const r of rows) parts.set(r[by], [...(parts.get(r[by]) ?? []), r]);
 	return [...parts].map(([name, rs]) => ({ name, ...sum(rs) })).sort((a, b) => total(b) - total(a));
@@ -89,6 +125,14 @@ export function short(n: number): string {
 }
 
 export const whole = (n: number) => n.toLocaleString('en-US');
+
+/** Dollars as they are read: $12.4K, $8,006, $4.27, under a cent as <$0.01. */
+export function money(n: number): string {
+	if (n >= 10_000) return `$${short(n)}`;
+	if (n >= 100) return `$${whole(Math.round(n))}`;
+	if (n >= 0.01 || n === 0) return `$${n.toFixed(2)}`;
+	return '<$0.01';
+}
 
 /** A tool by its own name. One not known here is said as it was kept. */
 export const toolName = (id: string) => ({ 'claude-code': 'Claude Code', codex: 'Codex', opencode: 'OpenCode' })[id] ?? id;

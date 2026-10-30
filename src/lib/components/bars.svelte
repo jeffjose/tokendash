@@ -11,6 +11,7 @@
 		colors,
 		ticks,
 		height = 'h-36',
+		fmt = short,
 		gap = 'gap-[2px]',
 		onpoint
 	}: {
@@ -19,12 +20,14 @@
 		/** Words under the bars: each at the bar it is under. */
 		ticks: { at: number; label: string }[];
 		height?: string;
+		/** How the tallest is written over the bars. */
+		fmt?: (n: number) => string;
 		gap?: string;
 		onpoint: (i: number | null, at?: DOMRect) => void;
 	} = $props();
 
 	const totals = $derived(bars.map((b) => b.parts.reduce((n, p) => n + p, 0)));
-	const most = $derived(Math.max(1, ...totals));
+	const most = $derived(Math.max(0, ...totals) || 1);
 	let lit = $state<number | null>(null);
 
 	function point(i: number | null, el?: HTMLElement) {
@@ -34,7 +37,7 @@
 </script>
 
 <div class="relative">
-	<div class="absolute top-0 left-0 text-[11px] text-muted-foreground">{short(most)}</div>
+	<div class="absolute top-0 left-0 text-[11px] text-muted-foreground">{fmt(most)}</div>
 	<div class="flex {height} items-end {gap} border-b border-border pt-5" role="list" onpointerleave={() => point(null)}>
 		{#each bars as b, i}
 			<div

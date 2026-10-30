@@ -10,6 +10,7 @@
 		"start": "node build",
 		"collect": "node collect/local.ts",
 		"pull": "sh collect/pull.sh",
+		"prices": "node collect/prices.ts",
 		"tokendash": "node collect/index.ts",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && TSGO_BIN=node_modules/.bin/tsrs svelte-check-native --tsconfig ./tsconfig.json",

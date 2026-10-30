@@ -10,15 +10,16 @@
 		days,
 		today,
 		hue = 'var(--brand)',
+		value = total,
 		onpoint
-	}: { days: Day[]; today: Date; hue?: string; onpoint: (iso: string | null, at?: DOMRect) => void } = $props();
+	}: { days: Day[]; today: Date; hue?: string; value?: (d: Day) => number; onpoint: (iso: string | null, at?: DOMRect) => void } = $props();
 
 	const WEEKS = 53;
 	const by = $derived(new Map(days.map((d) => [d.date, d])));
 
 	// Where each step begins: the quarter marks of the days that had anything.
 	const cuts = $derived.by(() => {
-		const sorted = days.map(total).filter((n) => n > 0).sort((a, b) => a - b);
+		const sorted = days.map(value).filter((n) => n > 0).sort((a, b) => a - b);
 		if (!sorted.length) return [Infinity, Infinity, Infinity];
 		return [0.25, 0.5, 0.75].map((q) => sorted[Math.floor(q * (sorted.length - 1))]);
 	});
@@ -86,7 +87,7 @@
 						{:else}
 							<div
 								class="size-[11px] rounded-[3px] {lit === c.iso ? 'ring-1 ring-foreground/60' : ''}"
-								style="background: {STEPS[c.day ? step(total(c.day)) : 0]}"
+								style="background: {STEPS[c.day ? step(value(c.day)) : 0]}"
 								data-day={c.iso}
 								role="gridcell"
 								aria-label={c.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}

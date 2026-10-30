@@ -105,6 +105,7 @@ What it does not see: claude.ai chats, and machines it was not run on.
 | Bars stacked by tool, maker or model (days, hours, weekdays) | `src/lib/components/bars.svelte`, `src/lib/split.ts` |
 | What a mark is made of, under the pointer | `src/lib/components/hover.svelte`, `breakdown.svelte` |
 | The marks of the tools and makers | `src/lib/marks.ts`, `src/lib/components/mark.svelte` |
+| What the tokens would have cost at API prices (`pnpm prices` takes new ones) | `src/lib/prices.json`, `collect/prices.ts` |
 
 It is built on [seed-web](https://github.com/jeffjose/seed-web): its type,
 color and hints, without its app shell (the shell's pieces are still in

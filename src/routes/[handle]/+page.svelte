@@ -10,7 +10,7 @@
 	import { SEG, SEG_ITEM, SEG_OFF, SEG_ON } from '#lib/seg.js';
 	import { colorOf, fillOf, nameOf, partOf, seriesOf, SHADES, SPLITS, type Split } from '#lib/split.js';
 	import { BTN, CARD, HEADING, ROWS } from '#lib/styles.js';
-	import { addDays, dateOf, daysOf, group, isoOf, makerOf, modelName, short, streaks, sum, toolName, total, whole, type Day, type Row, type Tokens } from '#lib/usage.js';
+	import { addDays, dateOf, daysOf, group, isoOf, makerOf, modelName, money, PRICED, short, streaks, sum, toolName, total, whole, type Day, type Row, type Spent, type Tokens } from '#lib/usage.js';
 
 	let { data } = $props();
 	const u = $derived(data.usage);
@@ -37,20 +37,28 @@
 	const dayBy = $derived(new Map(days.map((d) => [d.date, d])));
 	const all = $derived(sum(rows));
 
+	// What the page counts in: tokens, or what they would have cost at the makers' API prices. The cost is for fun,
+	// not a bill (a plan is not paid by the token), and the page says "at API prices" wherever it shows it.
+	let measure = $state<'tokens' | 'cost'>('tokens');
+	const v = (t: Spent) => (measure === 'cost' ? t.cost : total(t));
+	const say = (n: number) => (measure === 'cost' ? money(n) : short(n));
+	const sayAll = (n: number) => (measure === 'cost' ? `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `${whole(n)} tokens`);
+	const most = <T extends Spent>(ts: T[]) => [...ts].sort((a, b) => v(b) - v(a));
+
 	// What the bars are split by. With every tool in, the tools; with one, its models.
 	let chosen = $state<Split | null>(null);
 	const split = $derived(chosen ?? (tools.length > 1 && !tool ? 'tool' : 'model'));
 	const series = $derived(seriesOf(rows, split));
 	const partsOf = (rs: Row[]) => {
 		const p = series.map(() => 0);
-		for (const r of rs) p[partOf(series, r, split)] += total(r);
+		for (const r of rs) p[partOf(series, r, split)] += v(r);
 		return p;
 	};
 
 	// The tiles.
 	const since = $derived(isoOf(addDays(today, -29)));
-	const month = $derived(days.filter((d) => d.date >= since).reduce((n, d) => n + total(d), 0));
-	const busiest = $derived(days.reduce<Day | undefined>((a, d) => (!a || total(d) > total(a) ? d : a), undefined));
+	const month = $derived(days.filter((d) => d.date >= since).reduce((n, d) => n + v(d), 0));
+	const busiest = $derived(days.reduce<Day | undefined>((a, d) => (!a || v(d) > v(a) ? d : a), undefined));
 	const run = $derived(streaks(days, today));
 
 	// Day by day, as far back as is asked.
@@ -86,13 +94,15 @@
 
 	// The shares.
 	const byTool = $derived(
-		group(rows, 'tool').map((t) => ({ ...t, sessions: sessions.filter((s) => s.tool === t.name).reduce((n, s) => n + s.sessions, 0) }))
+		most(group(rows, 'tool').map((t) => ({ ...t, sessions: sessions.filter((s) => s.tool === t.name).reduce((n, s) => n + s.sessions, 0) })))
 	);
-	const byMaker = $derived(group(rows, 'maker'));
+	const byMaker = $derived(most(group(rows, 'maker')));
 	const byMachine = $derived(
-		group(rows, 'machine').map((m) => ({ ...m, sessions: sessions.filter((s) => s.machine === m.name).reduce((n, s) => n + s.sessions, 0) }))
+		most(group(rows, 'machine').map((m) => ({ ...m, sessions: sessions.filter((s) => s.machine === m.name).reduce((n, s) => n + s.sessions, 0) })))
 	);
-	const byModel = $derived(group(rows, 'model'));
+	const byModel = $derived(most(group(rows, 'model')));
+	// The models with no price known, by name, for the line that says they are left out of the cost.
+	const unpriced = $derived(byModel.filter((m) => m.unpriced > 0).map((m) => modelName(m.name)));
 	const KINDS = [
 		{ key: 'cache_read', name: 'Read from cache' },
 		{ key: 'cache_write', name: 'Written to cache' },
@@ -151,30 +161,37 @@
 		<AppearanceMenu />
 	</header>
 
-	<!-- On a row of its own, always: beside the name it went up and down with the length of the line under the name,
-	     which changes with the tool chosen, so pressing one moved the page. -->
-	{#if tools.length > 1}
-		<div class="{SEG} -mt-2 w-fit max-w-full overflow-x-auto [scrollbar-width:none]">
-			<button class="{SEG_ITEM} px-2.5 {tool === null ? SEG_ON : SEG_OFF}" onclick={() => only(null)}>All</button>
-			{#each tools as t}
-				<button class="{SEG_ITEM} flex items-center gap-1.5 px-2.5 {tool === t ? SEG_ON : SEG_OFF}" onclick={() => only(t)}>
-					<Mark of={t} class="size-3" />{toolName(t)}
-				</button>
-			{/each}
+	<!-- On a row of their own, always: beside the name the tools went up and down with the length of the line under the
+	     name, which changes with the tool chosen, so pressing one moved the page. What is in this row does not change
+	     with what is pressed, so where it wraps does not either. -->
+	<div class="-mt-2 flex flex-wrap items-center justify-between gap-2">
+		{#if tools.length > 1}
+			<div class="{SEG} w-fit max-w-full overflow-x-auto [scrollbar-width:none]">
+				<button class="{SEG_ITEM} px-2.5 {tool === null ? SEG_ON : SEG_OFF}" onclick={() => only(null)}>All</button>
+				{#each tools as t}
+					<button class="{SEG_ITEM} flex items-center gap-1.5 px-2.5 {tool === t ? SEG_ON : SEG_OFF}" onclick={() => only(t)}>
+						<Mark of={t} class="size-3" />{toolName(t)}
+					</button>
+				{/each}
+			</div>
+		{/if}
+		<div class="{SEG} ml-auto">
+			<button class="{SEG_ITEM} px-2.5 {measure === 'tokens' ? SEG_ON : SEG_OFF}" onclick={() => (measure = 'tokens')}>Tokens</button>
+			<button class="{SEG_ITEM} px-2.5 {measure === 'cost' ? SEG_ON : SEG_OFF}" onclick={() => (measure = 'cost')} data-tip="What the tokens would have cost at the makers' API prices">Cost</button>
 		</div>
-	{/if}
+	</div>
 
 	<section class="grid grid-cols-2 sm:grid-cols-4 {CARD} divide-foreground/10 max-sm:[&>*:nth-child(-n+2)]:border-b max-sm:[&>*]:border-foreground/10 sm:divide-x">
-		{@render tile('Tokens', short(total(all)), `${plural(all.messages, 'response')}`, whole(total(all)))}
-		{@render tile('Last 30 days', short(month), `${percent(month / Math.max(total(all), 1))} of it all`, whole(month))}
-		{@render tile('Busiest day', busiest ? short(total(busiest)) : '0', busiest ? fullDay(busiest.date) : 'None yet', busiest ? whole(total(busiest)) : undefined)}
+		{@render tile(measure === 'cost' ? 'At API prices' : 'Tokens', say(v(all)), measure === 'cost' ? (unpriced.length ? `${short(all.unpriced)} tokens unpriced` : `${money(all.saved)} saved by the cache`) : plural(all.messages, 'response'), sayAll(v(all)))}
+		{@render tile('Last 30 days', say(month), `${percent(month / Math.max(v(all), 1e-9))} of it all`, sayAll(month))}
+		{@render tile('Busiest day', busiest ? say(v(busiest)) : '0', busiest ? fullDay(busiest.date) : 'None yet', busiest ? sayAll(v(busiest)) : undefined)}
 		{@render tile('Days in a row', String(run.now), `${run.longest} at the most`)}
 	</section>
 
 	<section class="flex flex-col gap-3">
 		<h2 class={HEADING}>The year</h2>
 		<div class="{CARD} p-5">
-			<Year {days} {today} hue={(tool && colorOf(tool)) || undefined} onpoint={(iso, at) => (point = iso && at ? { kind: 'day', iso, at, below: true } : null)} />
+			<Year {days} {today} value={v} hue={(tool && colorOf(tool)) || undefined} onpoint={(iso, at) => (point = iso && at ? { kind: 'day', iso, at, below: true } : null)} />
 		</div>
 	</section>
 
@@ -204,6 +221,7 @@
 			{:else}
 			<Bars
 				bars={trend}
+				fmt={say}
 				colors={series.map((s) => s.color)}
 				gap={range > 30 ? 'gap-px' : 'gap-[2px]'}
 				ticks={[
@@ -241,6 +259,7 @@
 			<div class="{CARD} p-5">
 				<Bars
 					bars={week}
+					fmt={say}
 					colors={series.map((s) => s.color)}
 					height="h-24"
 					gap="gap-1.5"
@@ -258,7 +277,7 @@
 				<h2 class={HEADING}>By tool</h2>
 				<div class={ROWS}>
 					{#each byTool as t, i}
-						{@render share(toolName(t.name), total(t), total(all), `${plural(t.sessions, 'session')} · ${plural(t.messages, 'response')}`, t.name, fillOf('tool', t.name, 0))}
+						{@render share(toolName(t.name), v(t), v(all), `${plural(t.sessions, 'session')} · ${plural(t.messages, 'response')}`, t.name, fillOf('tool', t.name, 0))}
 					{/each}
 				</div>
 			</section>
@@ -268,7 +287,7 @@
 				<h2 class={HEADING}>By maker</h2>
 				<div class={ROWS}>
 					{#each byMaker as m, i}
-						{@render share(m.name, total(m), total(all), plural(m.messages, 'response'), m.name, fillOf('maker', m.name, i))}
+						{@render share(m.name, v(m), v(all), plural(m.messages, 'response'), m.name, fillOf('maker', m.name, i))}
 					{/each}
 				</div>
 			</section>
@@ -278,7 +297,7 @@
 				<h2 class={HEADING}>By machine</h2>
 				<div class={ROWS}>
 					{#each byMachine as m, i}
-						{@render share(m.name, total(m), total(all), `${plural(m.sessions, 'session')} · ${plural(m.messages, 'response')}`, 'machine', fillOf('machine', m.name, i))}
+						{@render share(m.name, v(m), v(all), `${plural(m.sessions, 'session')} · ${plural(m.messages, 'response')}`, 'machine', fillOf('machine', m.name, i))}
 					{/each}
 				</div>
 			</section>
@@ -287,7 +306,7 @@
 			<h2 class={HEADING}>By model</h2>
 			<div class={ROWS}>
 				{#each byModel as m}
-					{@render share(modelName(m.name), total(m), total(all), `${m.name} · ${plural(m.messages, 'response')}`, makerOf(m.name), fillOf('model', m.name, 0))}
+					{@render share(modelName(m.name), v(m), v(all), `${m.name} · ${plural(m.messages, 'response')}`, makerOf(m.name), fillOf('model', m.name, 0))}
 				{/each}
 			</div>
 		</section>
@@ -308,6 +327,13 @@
 						</div>
 					{/each}
 				</div>
+				{#if all.saved > 0}
+					<!-- What reading from the cache came to against reading the same tokens in fresh, at API prices. -->
+					<div class="flex items-center justify-between border-t border-border/50 pt-3 text-[13px]" data-tip="Read from the cache, against reading the same in fresh, at API prices">
+						<span>Saved by the cache</span>
+						<span class="text-muted-foreground">{money(all.saved)}</span>
+					</div>
+				{/if}
 			</div>
 		</section>
 	</div>
@@ -327,6 +353,7 @@
 						<th>{table === 'day' ? 'Day' : 'Model'}</th>
 						{#if table === 'model'}<th class="max-sm:hidden">Tools</th>{/if}
 						<th class="text-right">Tokens</th>
+						<th class="text-right max-sm:hidden" data-tip="At API prices, as of {fullDay(PRICED.as_of.slice(0, 10))}">Cost</th>
 						{#if table === 'model'}<th class="text-right max-sm:pr-5">Share</th>{/if}
 						<th class="text-right max-sm:hidden">From cache</th>
 						<th class="text-right max-sm:hidden">To cache</th>
@@ -355,7 +382,7 @@
 								<tr class="bg-foreground/[0.02] text-[12px] text-muted-foreground sm:hidden">
 									<td colspan="3" class="px-5 pt-2.5 pb-1">
 										<div class="grid grid-cols-2 gap-x-6 gap-y-0.5 pl-4">
-											{#each [['From cache', short(d.cache_read)], ['To cache', short(d.cache_write)], ['Out', short(d.output)], ['In', short(d.input)], ['Sessions', whole(d.sessions)]] as const as [name, n]}
+											{#each [['From cache', short(d.cache_read)], ['To cache', short(d.cache_write)], ['Out', short(d.output)], ['In', short(d.input)], ['Sessions', whole(d.sessions)], ['Cost', d.unpriced && !d.cost ? '—' : money(d.cost)]] as const as [name, n]}
 												<div class="flex justify-between gap-3"><span>{name}</span><span class="text-foreground">{n}</span></div>
 											{/each}
 										</div>
@@ -380,7 +407,8 @@
 								</td>
 								<td class="whitespace-nowrap text-muted-foreground max-sm:hidden">{names(group(rows.filter((r) => r.model === m.name), 'tool').map((t) => toolName(t.name)))}</td>
 								<td class="text-right" data-tip={whole(total(m))}>{short(total(m))}</td>
-								<td class="text-right text-muted-foreground max-sm:pr-5">{percent(total(m) / Math.max(total(all), 1))}</td>
+								<td class="text-right max-sm:hidden" data-tip={m.unpriced ? 'No price known' : undefined}>{m.unpriced ? '—' : money(m.cost)}</td>
+								<td class="text-right text-muted-foreground max-sm:pr-5">{percent(v(m) / Math.max(v(all), 1e-9))}</td>
 								{@render cells(m, true, true)}
 							</tr>
 						{/each}
@@ -394,6 +422,14 @@
 			{/if}
 		</div>
 	</section>
+
+	<!-- Where the prices are from, and what the cost leaves out: said once, at the foot, and not over every number. -->
+	<footer class="text-[12px] leading-relaxed text-muted-foreground">
+		Cost is what the tokens would have cost at the makers' API prices, from
+		<a href={PRICED.source} class="underline decoration-foreground/20 underline-offset-2 hover:decoration-foreground/50">LiteLLM's list</a>
+		as of {fullDay(PRICED.as_of.slice(0, 10))}, every cache write at the five-minute rate. A plan is not paid by the token, so it is not what was paid.
+		{#if unpriced.length}{names(unpriced)} {unpriced.length === 1 ? 'has' : 'have'} no price and {unpriced.length === 1 ? 'is' : 'are'} left out of it.{/if}
+	</footer>
 </main>
 
 <Hover at={point?.at ?? null} below={point?.below}>
@@ -402,10 +438,11 @@
 		{#if d}
 			<Breakdown
 				title={dayName(point.iso, true)}
-				value={short(total(d))}
-				parts={group(d.rows, split).map((p) => ({ name: nameOf(split, p.name), n: total(p), color: series[partOf(series, d.rows.find((r) => r[split] === p.name)!, split)].color }))}
+				value={say(v(d))}
+				fmt={say}
+				parts={group(d.rows, split).map((p) => ({ name: nameOf(split, p.name), n: v(p), color: series[partOf(series, d.rows.find((r) => r[split] === p.name)!, split)].color }))}
 				kinds={d}
-				foot={[`${plural(d.messages, 'response')} · ${plural(d.sessions, 'session')}`]}
+				foot={[`${plural(d.messages, 'response')} · ${plural(d.sessions, 'session')}`, measure === 'cost' ? `${short(total(d))} tokens` : d.unpriced && !d.cost ? 'No price known' : `${money(d.cost)} at API prices`]}
 			/>
 		{:else}
 			<Breakdown title={dayName(point.iso, true)} value="Nothing" />
@@ -424,9 +461,10 @@
 		{@const n = w.parts.reduce((a, b) => a + b, 0)}
 		<Breakdown
 			title={w.label}
-			value={short(n)}
+			value={say(n)}
+			fmt={say}
 			parts={series.map((s, j) => ({ name: s.name, n: w.parts[j], color: s.color })).filter((p) => p.n > 0)}
-			foot={[`${plural(w.days.length, 'day')} with any · ${short(n / Math.max(w.days.length, 1))} on each`]}
+			foot={[`${plural(w.days.length, 'day')} with any · ${say(n / Math.max(w.days.length, 1))} on each`]}
 		/>
 	{/if}
 </Hover>
@@ -455,7 +493,7 @@
 	<div class="flex flex-col gap-2 px-4 py-3" data-tip={tip}>
 		<div class="flex items-baseline justify-between gap-3 text-[14px]">
 			<span class="flex min-w-0 items-center gap-2 self-center"><span class="text-muted-foreground"><Mark of={mark} /></span><span class="truncate">{name}</span></span>
-			<span class="shrink-0 text-[13px] text-muted-foreground">{short(n)} · {percent(n / Math.max(of, 1))}</span>
+			<span class="shrink-0 text-[13px] text-muted-foreground">{say(n)} · {percent(n / Math.max(of, 1e-9))}</span>
 		</div>
 		<div class="h-1 overflow-hidden rounded-full bg-foreground/[0.07]">
 			<div class="h-full rounded-full" style="background: {color}; width: {Math.max(0.5, (n / Math.max(of, 1)) * 100)}%"></div>
@@ -465,8 +503,11 @@
 
 <!-- A table row's counts, each short with the whole of it under the pointer. A day's own total comes first; a model's is said before its share.
      On a phone only the total and the responses are columns, and a model's responses go too, for its share. -->
-{#snippet cells(t: Tokens, quiet: boolean, skipTotal = false)}
-	{#if !skipTotal}<td class="text-right {quiet ? '' : 'font-medium'}" data-tip={whole(total(t))}>{short(total(t))}</td>{/if}
+{#snippet cells(t: Spent, quiet: boolean, skipTotal = false)}
+	{#if !skipTotal}
+		<td class="text-right {quiet ? '' : 'font-medium'}" data-tip={whole(total(t))}>{short(total(t))}</td>
+		<td class="text-right text-muted-foreground max-sm:hidden" data-tip={t.unpriced ? (t.cost ? `${short(t.unpriced)} tokens with no price known` : 'No price known') : undefined}>{t.unpriced && !t.cost ? '—' : money(t.cost)}</td>
+	{/if}
 	<td class="text-right text-muted-foreground max-sm:hidden" data-tip={whole(t.cache_read)}>{short(t.cache_read)}</td>
 	<td class="text-right text-muted-foreground max-sm:hidden" data-tip={whole(t.cache_write)}>{short(t.cache_write)}</td>
 	<td class="text-right text-muted-foreground max-sm:hidden" data-tip={whole(t.output)}>{short(t.output)}</td>

@@ -7,8 +7,9 @@
 		value,
 		parts = [],
 		kinds,
-		foot = []
-	}: { title: string; value: string; parts?: { name: string; n: number; color: string }[]; kinds?: Tokens; foot?: string[] } = $props();
+		foot = [],
+		fmt = short
+	}: { title: string; value: string; parts?: { name: string; n: number; color: string }[]; kinds?: Tokens; foot?: string[]; fmt?: (n: number) => string } = $props();
 
 	const of = $derived(parts.reduce((n, p) => n + p.n, 0));
 	const percent = (f: number) => (f >= 0.01 ? `${Math.round(f * 100)}%` : f > 0 ? '<1%' : '0%');
@@ -27,7 +28,7 @@
 			<div class="flex items-center gap-2">
 				<span class="size-2 shrink-0 rounded-[2px]" style="background: {p.color}"></span>
 				<span class="min-w-0 flex-1 truncate">{p.name}</span>
-				<span class="pl-3">{short(p.n)}</span>
+				<span class="pl-3">{fmt(p.n)}</span>
 				{#if parts.length > 1}<span class="w-9 text-right" style={QUIET}>{percent(p.n / Math.max(of, 1))}</span>{/if}
 			</div>
 		{/each}
