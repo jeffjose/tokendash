@@ -31,11 +31,12 @@ export async function opencode(): Promise<Counted> {
 		const n = r.tokens ? JSON.parse(r.tokens) : null;
 		// A reply that was cut off before it began has no tokens, and is not one.
 		if (!r.model || !n || !(n.total ?? n.input + n.output)) continue;
-		const t = add(days, r.time_created, r.session_id, r.model);
-		t.input += n.input ?? 0;
-		t.output += (n.output ?? 0) + (n.reasoning ?? 0);
-		t.cache_write += n.cache?.write ?? 0;
-		t.cache_read += n.cache?.read ?? 0;
+		add(days, r.time_created, r.session_id, r.model, {
+			input: n.input ?? 0,
+			output: (n.output ?? 0) + (n.reasoning ?? 0),
+			cache_write: n.cache?.write ?? 0,
+			cache_read: n.cache?.read ?? 0
+		});
 	}
 	return days;
 }

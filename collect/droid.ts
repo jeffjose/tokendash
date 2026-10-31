@@ -59,11 +59,7 @@ export async function droid(): Promise<Counted> {
 		const output = n(u.outputTokens) + n(u.thinkingTokens);
 		if (!input && !output) input = n(u.totalTokens);
 		if (!input && !output && !n(u.cacheCreationTokens) && !n(u.cacheReadTokens)) continue;
-		const t = add(days, when, id, model);
-		t.input += input;
-		t.output += output;
-		t.cache_write += n(u.cacheCreationTokens);
-		t.cache_read += n(u.cacheReadTokens);
+		add(days, when, id, model, { input, output, cache_write: n(u.cacheCreationTokens), cache_read: n(u.cacheReadTokens) });
 	}
 	return days;
 }

@@ -54,11 +54,7 @@ export async function amp(): Promise<Counted> {
 					// Only a total, and no parts: it is counted as read in, as ccusage does.
 					if (!input && !output) input = n(e.tokens.total);
 					if (!input && !output && !n(c.cacheCreationInputTokens) && !n(c.cacheReadInputTokens)) continue;
-					const t = add(days, e.timestamp, id, e.model);
-					t.input += input;
-					t.output += output;
-					t.cache_write += n(c.cacheCreationInputTokens);
-					t.cache_read += n(c.cacheReadInputTokens);
+					add(days, e.timestamp, id, e.model, { input, output, cache_write: n(c.cacheCreationInputTokens), cache_read: n(c.cacheReadInputTokens) });
 				}
 				continue;
 			}
@@ -67,11 +63,7 @@ export async function amp(): Promise<Counted> {
 				if (!u?.timestamp || !u.model) continue;
 				const parts = [u.inputTokens, u.outputTokens, u.cacheCreationInputTokens, u.cacheReadInputTokens].map(n);
 				if (!parts.some(Boolean)) continue;
-				const t = add(days, u.timestamp, id, u.model);
-				t.input += parts[0];
-				t.output += parts[1];
-				t.cache_write += parts[2];
-				t.cache_read += parts[3];
+				add(days, u.timestamp, id, u.model, { input: parts[0], output: parts[1], cache_write: parts[2], cache_read: parts[3] });
 			}
 		}
 	}

@@ -76,10 +76,11 @@ export async function gemini(): Promise<Counted> {
 		const n = m.tokens!;
 		const cached = n.cached ?? 0;
 		if (!(n.total ?? (n.input ?? 0) + (n.output ?? 0))) continue;
-		const t = add(days, m.timestamp!, m.session, m.model!);
-		t.input += Math.max(0, (n.input ?? 0) - cached) + (n.tool ?? 0);
-		t.output += (n.output ?? 0) + (n.thoughts ?? 0);
-		t.cache_read += cached;
+		add(days, m.timestamp!, m.session, m.model!, {
+			input: Math.max(0, (n.input ?? 0) - cached) + (n.tool ?? 0),
+			output: (n.output ?? 0) + (n.thoughts ?? 0),
+			cache_read: cached
+		});
 	}
 	return days;
 }

@@ -57,11 +57,12 @@ export async function codex(): Promise<Counted> {
 				last = running;
 				const u = p.info.last_token_usage;
 				const cached = u.cached_input_tokens ?? 0;
-				const t = add(days, entry.timestamp, session, model);
-				t.input += Math.max(0, (u.input_tokens ?? 0) - cached);
-				t.output += u.output_tokens ?? 0;
-				t.cache_write += u.cache_write_input_tokens ?? 0;
-				t.cache_read += cached;
+				add(days, entry.timestamp, session, model, {
+					input: Math.max(0, (u.input_tokens ?? 0) - cached),
+					output: u.output_tokens ?? 0,
+					cache_write: u.cache_write_input_tokens ?? 0,
+					cache_read: cached
+				});
 			}
 		}
 	}

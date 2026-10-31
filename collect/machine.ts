@@ -99,7 +99,8 @@ export async function count(seed?: Day[]): Promise<{ file: MachineFile; said: st
 				responses += t.messages;
 			}
 			const hours = d.hours.map((n, h) => Math.max(old?.hours?.[h] ?? 0, n));
-			day.tools[tool] = { sessions: Math.max(old?.sessions ?? 0, d.sessions.size), hours, models };
+			const hour_tokens = d.hour_tokens.map((n, h) => Math.max(old?.hour_tokens?.[h] ?? 0, n));
+			day.tools[tool] = { sessions: Math.max(old?.sessions ?? 0, d.sessions.size), hours, hour_tokens, models };
 			kept.set(date, day);
 		}
 		said.push(`${tool}: ${days.size} days, ${responses} responses on disk`);

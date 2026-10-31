@@ -11,7 +11,7 @@
  *   send under your machine, and a machine cannot change hands quietly.
  * - The counts must be ones a tool could have written: no day after tomorrow,
  *   no more responses in an hour than one a second, no response bigger than a
- *   model's window, and the hours adding up to the responses.
+ *   model's window, and the hours adding up to no more than the day.
  *
  * A file that fails is not counted, and says why.
  */
@@ -40,6 +40,7 @@ export function problems(f: MachineFile, known?: string): string[] {
 		for (const [tool, t] of Object.entries(d.tools)) {
 			const where = `${d.date} ${tool}`;
 			let messages = 0;
+			let tokens = 0;
 			for (const [model, n] of Object.entries(t.models)) {
 				const vals = [n.input, n.output, n.cache_write, n.cache_read, n.messages];
 				if (vals.some((v) => !Number.isSafeInteger(v) || v < 0)) out.push(`${where} ${model}: a count that is not a count`);
@@ -47,11 +48,16 @@ export function problems(f: MachineFile, known?: string): string[] {
 				if (!BY_SESSION.has(tool) && n.output > n.messages * MOST_OUT) out.push(`${where} ${model}: more written out than a response can be`);
 				if (!BY_SESSION.has(tool) && n.input + n.cache_write + n.cache_read > n.messages * MOST_IN) out.push(`${where} ${model}: more read in than a response can be`);
 				messages += n.messages;
+				tokens += n.input + n.output + n.cache_write + n.cache_read;
 			}
 			if (t.hours) {
 				if (t.hours.length !== 24) out.push(`${where}: not 24 hours`);
 				if (t.hours.some((h) => h > 3600)) out.push(`${where}: more than a response a second`);
 				if (t.hours.reduce((a, b) => a + b, 0) > messages) out.push(`${where}: more responses by the hour than in the day`);
+			}
+			if (t.hour_tokens) {
+				if (t.hour_tokens.length !== 24 || t.hour_tokens.some((h) => !Number.isSafeInteger(h) || h < 0)) out.push(`${where}: not 24 hours of tokens`);
+				if (t.hour_tokens.reduce((a, b) => a + b, 0) > tokens) out.push(`${where}: more tokens by the hour than in the day`);
 			}
 			if (t.sessions > messages) out.push(`${where}: more sessions than responses`);
 		}

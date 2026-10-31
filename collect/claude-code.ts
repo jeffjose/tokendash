@@ -50,11 +50,12 @@ export async function claudeCode(): Promise<Counted> {
 			if (seen.has(key)) continue;
 			seen.add(key);
 
-			const t = add(days, entry.timestamp, entry.sessionId, m.model);
-			t.input += m.usage.input_tokens ?? 0;
-			t.output += m.usage.output_tokens ?? 0;
-			t.cache_write += m.usage.cache_creation_input_tokens ?? 0;
-			t.cache_read += m.usage.cache_read_input_tokens ?? 0;
+			add(days, entry.timestamp, entry.sessionId, m.model, {
+				input: m.usage.input_tokens ?? 0,
+				output: m.usage.output_tokens ?? 0,
+				cache_write: m.usage.cache_creation_input_tokens ?? 0,
+				cache_read: m.usage.cache_read_input_tokens ?? 0
+			});
 		}
 	}
 	return days;
