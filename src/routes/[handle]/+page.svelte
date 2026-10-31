@@ -63,13 +63,46 @@
 	const busiest = $derived(days.reduce<Day | undefined>((a, d) => (!a || v(d) > v(a) ? d : a), undefined));
 	const run = $derived(streaks(days, today));
 
-	// Day by day, as far back as is asked.
+	// Day by day, as far back as is asked: a week, a month, three; or a day, which is drawn hour by hour.
+	const RANGES = [1, 7, 30, 90];
 	let range = $state(30);
 	const trend = $derived(
 		Array.from({ length: range }, (_, i) => {
 			const date = addDays(today, i - range + 1);
 			const d = dayBy.get(isoOf(date));
 			return { iso: isoOf(date), date, parts: d ? partsOf(d.rows) : series.map(() => 0), label: dayName(isoOf(date)) };
+		})
+	);
+
+	// A day is the last 24 hours, on the clock the days were counted on, and not today alone: in the morning today
+	// is nearly empty. An hour is split by tool, which is what the hours are kept by. Its cost is its share, by tokens,
+	// of the cost of its tool's day.
+	const nowHour = $derived(Number(new Intl.DateTimeFormat('en-US', { timeZone: u.zone, hour: 'numeric', hourCycle: 'h23' }).format(new Date())) % 24);
+	const perToken = $derived.by(() => {
+		const by = new Map<string, { cost: number; tokens: number }>();
+		for (const r of rows) {
+			const k = `${r.date} ${r.tool} ${r.machine}`;
+			const s = by.get(k) ?? { cost: 0, tokens: 0 };
+			s.cost += r.cost;
+			s.tokens += total(r);
+			by.set(k, s);
+		}
+		return new Map([...by].map(([k, s]) => [k, s.tokens ? s.cost / s.tokens : 0]));
+	});
+	const hourly = $derived(
+		Array.from({ length: 24 }, (_, i) => {
+			let hour = nowHour - (23 - i);
+			const iso = isoOf(hour < 0 ? addDays(today, -1) : today);
+			hour = (hour + 24) % 24;
+			const parts = toolSeries.map(() => 0);
+			let responses = 0;
+			for (const s of sessions) {
+				if (s.date !== iso) continue;
+				const tokens = s.hour_tokens[hour] ?? 0;
+				parts[toolSeries.findIndex((t) => t.keys.includes(s.tool))] += measure === 'cost' ? tokens * (perToken.get(`${s.date} ${s.tool} ${s.machine}`) ?? 0) : tokens;
+				responses += s.hours[hour] ?? 0;
+			}
+			return { iso, hour, parts, responses, label: `${dayName(iso)}, ${hourName(hour)}` };
 		})
 	);
 
@@ -159,7 +192,7 @@
 	const listed = $derived([...days].reverse().slice(0, every ? undefined : 14));
 
 	// The hover card: what is under the pointer, and where.
-	type Point = ({ kind: 'day'; iso: string } | { kind: 'climb'; i: number } | { kind: 'clock'; day: number; hour: number } | { kind: 'week'; i: number }) & { at: DOMRect; below?: boolean };
+	type Point = ({ kind: 'day'; iso: string } | { kind: 'hour'; i: number } | { kind: 'climb'; i: number } | { kind: 'clock'; day: number; hour: number } | { kind: 'week'; i: number }) & { at: DOMRect; below?: boolean };
 	let point = $state<Point | null>(null);
 
 	// A part of the whole too small to say as a whole number is said to a tenth, and one too small for that as under it.
@@ -239,7 +272,7 @@
 
 	<section class="flex flex-col gap-3">
 		<div class="flex flex-wrap items-center justify-between gap-2">
-			<h2 class={HEADING}>Day by day</h2>
+			<h2 class={HEADING}>{range === 1 ? 'Hour by hour' : 'Day by day'}</h2>
 			<!-- One row on a phone too, under the heading and across the page: stacked, the two read as two loose bars. There
 			     the range is said as "30 d", as a time is said ("3 h ago"), so both fit down to 360px (under that, it goes under). -->
 			<div class="flex flex-wrap gap-2 max-sm:w-full max-sm:justify-between">
@@ -249,31 +282,50 @@
 					{/each}
 				</div>
 				<div class={SEG}>
-					{#each [30, 90] as n}
-						<button class="{SEG_ITEM} px-1.5 sm:px-2.5 {range === n ? SEG_ON : SEG_OFF}" onclick={() => (range = n)} aria-label="{n} days"
-							><span class="sm:hidden">{n} d</span><span class="max-sm:hidden">{n} days</span></button
+					{#each RANGES as n}
+						<button class="{SEG_ITEM} px-1.5 sm:px-2.5 {range === n ? SEG_ON : SEG_OFF}" onclick={() => (range = n)} aria-label={n === 1 ? 'The last 24 hours' : `${n} days`}
+							><span class="sm:hidden">{n} d</span><span class="max-sm:hidden">{n === 1 ? '1 day' : `${n} days`}</span></button
 						>
 					{/each}
 				</div>
 			</div>
 		</div>
 		<div class="{CARD} p-5">
-			{#if !trend.some((t) => t.parts.some((p) => p > 0))}
+			{#if range === 1}
+				{#if !hourly.some((h) => h.parts.some((p) => p > 0))}
+					<p class="text-[13px] text-muted-foreground">Nothing in the last 24 hours, or not counted by the hour.</p>
+				{:else}
+					<Bars
+						bars={hourly}
+						fmt={say}
+						colors={toolSeries.map((s) => s.color)}
+						ticks={[
+							{ at: 0, label: hourName(hourly[0].hour) },
+							{ at: 12, label: hourName(hourly[12].hour) },
+							{ at: 23, label: 'Now' }
+						]}
+						onpoint={(i, at) => (point = i !== null && at ? { kind: 'hour', i, at } : null)}
+					/>
+					{@render legend(toolSeries.map((s) => ({ name: s.name, color: s.color, key: s.keys[0] })))}
+				{/if}
+			{:else if !trend.some((t) => t.parts.some((p) => p > 0))}
 				<p class="text-[13px] text-muted-foreground">Nothing in the last {range} days.</p>
 			{:else}
-			<Bars
-				bars={trend}
-				fmt={say}
-				colors={series.map((s) => s.color)}
-				gap={range > 30 ? 'gap-px' : 'gap-[2px]'}
-				ticks={[
-					{ at: 0, label: dayName(trend[0].iso) },
-					{ at: Math.floor(range / 2), label: dayName(trend[Math.floor(range / 2)].iso) },
-					{ at: range - 1, label: 'Today' }
-				]}
-				onpoint={(i, at) => (point = i !== null && at ? { kind: 'day', iso: trend[i].iso, at } : null)}
-			/>
-			{@render legend(series.map((s) => ({ name: s.name, color: s.color, key: s.keys.length === 1 ? s.keys[0] : '' })))}
+				<Bars
+					bars={trend}
+					fmt={say}
+					colors={series.map((s) => s.color)}
+					gap={range > 30 ? 'gap-px' : range === 7 ? 'gap-1.5' : 'gap-[2px]'}
+					ticks={range === 7
+						? trend.map((t, i) => ({ at: i, label: i === 6 ? 'Today' : t.date.toLocaleDateString('en-US', { weekday: 'short' }) }))
+						: [
+								{ at: 0, label: dayName(trend[0].iso) },
+								{ at: Math.floor(range / 2), label: dayName(trend[Math.floor(range / 2)].iso) },
+								{ at: range - 1, label: 'Today' }
+							]}
+					onpoint={(i, at) => (point = i !== null && at ? { kind: 'day', iso: trend[i].iso, at } : null)}
+				/>
+				{@render legend(series.map((s) => ({ name: s.name, color: s.color, key: s.keys.length === 1 ? s.keys[0] : '' })))}
 			{/if}
 		</div>
 	</section>
@@ -513,6 +565,16 @@
 		{:else}
 			<Breakdown title={dayName(point.iso, true)} value="Nothing" />
 		{/if}
+	{:else if point?.kind === 'hour'}
+		{@const h = hourly[point.i]}
+		{@const n = h.parts.reduce((a, b) => a + b, 0)}
+		<Breakdown
+			title="{dayName(h.iso)}, {hourName(h.hour)} to {hourName((h.hour + 1) % 24)}"
+			value={n ? say(n) : 'Nothing'}
+			fmt={say}
+			parts={toolSeries.map((s, j) => ({ name: s.name, n: h.parts[j], color: s.color })).filter((p) => p.n > 0)}
+			foot={[plural(h.responses, 'response')]}
+		/>
 	{:else if point?.kind === 'climb'}
 		{@const c = climb[point.i]}
 		{@const n = c.parts.reduce((a, b) => a + b, 0)}

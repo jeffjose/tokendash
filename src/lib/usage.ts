@@ -15,15 +15,15 @@ export type Tokens = { input: number; output: number; cache_write: number; cache
  */
 export type Spent = Tokens & { cost: number; saved: number; unpriced: number };
 /** A day as a machine keeps it: for each tool, its sessions, its responses by the hour, and what each model spent. */
-export type Kept = { date: string; tools: Record<string, { sessions: number; hours?: number[]; models: Record<string, Tokens> }> };
+export type Kept = { date: string; tools: Record<string, { sessions: number; hours?: number[]; hour_tokens?: number[]; models: Record<string, Tokens> }> };
 /** What one machine counted, on its own clock. */
 export type Machine = { machine: { id: string; name: string }; zone: string; generated_at: string; days: Kept[] };
 export type File = { handle: string; generated_at: string; machines: Machine[] };
 
 /** One model in one tool on one machine on one day: the grain everything on the page is added up from. */
 export type Row = Spent & { date: string; tool: string; model: string; maker: string; machine: string };
-/** One tool's sessions on one machine on one day, and its responses in each hour of it. A session is counted by its tool, not by its model. */
-export type Sessions = { date: string; tool: string; machine: string; sessions: number; hours: number[] };
+/** One tool's sessions on one machine on one day, and its responses and tokens in each hour of it. A session is counted by its tool, not by its model. */
+export type Sessions = { date: string; tool: string; machine: string; sessions: number; hours: number[]; hour_tokens: number[] };
 export type Usage = { handle: string; generated_at: string; zone: string; machines: string[]; rows: Row[]; sessions: Sessions[] };
 /** Anything added up: a day, a tool, a model. */
 export type Sum = Spent & { sessions: number };
@@ -78,7 +78,7 @@ export function read(file: File): Usage {
 		const machine = named(m);
 		for (const d of m.days) {
 			for (const [tool, t] of Object.entries(d.tools)) {
-				sessions.push({ date: d.date, tool, machine, sessions: t.sessions, hours: t.hours ?? [] });
+				sessions.push({ date: d.date, tool, machine, sessions: t.sessions, hours: t.hours ?? [], hour_tokens: t.hour_tokens ?? [] });
 				for (const [model, n] of Object.entries(t.models)) rows.push({ ...spend(n, priceOf(model)), date: d.date, tool, model, maker: makerOf(model), machine });
 			}
 		}
