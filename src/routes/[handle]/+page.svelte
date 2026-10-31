@@ -205,13 +205,6 @@
 		return `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`;
 	}
 	const plural = (n: number, one: string, many = `${one}s`) => `${whole(n)} ${n === 1 ? one : many}`;
-	function ago(iso: string): string {
-		const s = (Date.now() - new Date(iso).getTime()) / 1000;
-		if (s < 60) return 'just now';
-		if (s < 3600) return `${Math.floor(s / 60)} min ago`;
-		if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
-		return `${Math.floor(s / 86400)} d ago`;
-	}
 	const names = (ts: string[]) => (ts.length < 3 ? ts.join(' and ') : `${ts.slice(0, -1).join(', ')} and ${ts.at(-1)}`);
 </script>
 
@@ -222,15 +215,11 @@
 <svelte:window onscroll={() => (point = null)} />
 
 <main class="mx-auto flex max-w-[880px] flex-col gap-6 px-4 py-10 sm:px-6 sm:py-14">
-	<header class="flex items-start justify-between gap-4">
+	<header class="flex items-center justify-between gap-4">
 		<div class="flex min-w-0 items-center gap-4">
 			<img src="https://github.com/{u.handle}.png?size=128" alt="" class="size-16 shrink-0 rounded-full bg-muted ring-1 ring-foreground/10" />
 			<div class="min-w-0">
 				<h1 class="truncate text-[22px] font-medium tracking-tight">{u.handle}</h1>
-				<p class="text-[13px] text-muted-foreground">
-					{names((tool ? [tool] : tools).map(toolName))} since {days.length ? fullDay(days[0].date) : '—'} ·
-					<span data-tip={new Date(u.generated_at).toLocaleString('en-US')}>counted {ago(u.generated_at)}</span>
-				</p>
 			</div>
 		</div>
 		<AppearanceMenu />
